@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Persistent Clause Reader</title>
+    <title>Distinct Clause Reader</title>
     <style>
         :root {
             --bg-color: #0a0a0a;
@@ -12,8 +12,11 @@
             --text-active: #ffffff;
             --word-highlight: #2a2a2a;
             --clause-highlight: #1a3a5a; 
-            --btn-bg: #1a1a1a;
-            --btn-border: #333;
+            /* New boundary colors */
+            --clause-start: #162e45; /* Slightly different shade for the start */
+            --clause-end: #224a73;   /* Slightly brighter shade for the end */
+            --btn-bg: #141414;
+            --btn-border: #252525;
         }
 
         body, html {
@@ -40,7 +43,7 @@
         }
 
         #start-btn {
-            padding: 15px; background: var(--btn-bg); color: #888;
+            padding: 15px; background: var(--btn-bg); color: #666;
             border: 1px solid var(--btn-border); border-radius: 8px;
             font-size: 18px; cursor: pointer;
         }
@@ -49,15 +52,14 @@
 
         #display-area {
             flex: 1; padding: 60px 30px; overflow-y: auto;
-            line-height: 2.5; font-size: 26px; padding-bottom: 50vh;
+            line-height: 2.8; font-size: 26px; padding-bottom: 50vh;
         }
 
         .word {
-            display: inline-block; /* Changed back to inline-block for gap support */
-            padding: 4px 0;
+            display: inline-block;
+            padding: 2px 0;
             color: var(--text-dim);
             white-space: pre;
-            transition: margin 0.2s;
         }
 
         .word.active {
@@ -65,46 +67,58 @@
             color: #ccc;
         }
 
+        /* Base Clause Style */
         .word.clause-locked {
-            background-color: var(--clause-highlight) !important;
+            background-color: var(--clause-highlight);
             color: white !important;
         }
 
-        /* The Clause Gap: Adds space after the last word of a clause */
-        .word.clause-end {
-            margin-right: 25px; 
-            border-top-right-radius: 6px;
-            border-bottom-right-radius: 6px;
+        /* START of Clause: Faintly different color + rounded left */
+        .word.clause-anchor-start {
+            background-color: var(--clause-start) !important;
+            border-top-left-radius: 8px;
+            border-bottom-left-radius: 8px;
+            padding-left: 8px;
+        }
+
+        /* END of Clause: Faintly different color + rounded right + Gap */
+        .word.clause-anchor-end {
+            background-color: var(--clause-end) !important;
+            border-top-right-radius: 8px;
+            border-bottom-right-radius: 8px;
+            padding-right: 8px;
+            margin-right: 30px; /* The physical gap */
         }
 
         .controls { display: flex; height: 35vh; width: 100%; background: var(--bg-color); }
 
         .ctrl-btn {
             flex: 1; background: var(--btn-bg); border: 1px solid var(--btn-border);
-            color: #555; font-size: 16px; cursor: pointer; outline: none;
+            color: #444; font-size: 14px; cursor: pointer; outline: none;
             -webkit-tap-highlight-color: transparent;
+            letter-spacing: 2px;
         }
 
         #reset-progress {
-            position: absolute; top: 10px; right: 10px;
-            background: none; border: 1px solid #333; color: #444;
-            padding: 5px 10px; border-radius: 4px; font-size: 12px;
+            position: absolute; top: 15px; right: 15px;
+            background: none; border: 1px solid #222; color: #333;
+            padding: 8px 12px; border-radius: 6px; font-size: 12px;
         }
     </style>
 </head>
 <body>
 
     <div id="setup-page">
-        <textarea id="input-text" placeholder="Paste text here..."></textarea>
-        <button id="start-btn">Start Reading</button>
+        <textarea id="input-text" placeholder="Paste your text here..."></textarea>
+        <button id="start-btn">BEGIN READING</button>
     </div>
 
     <div id="reader-page" class="hidden">
-        <button id="reset-progress">New Text</button>
+        <button id="reset-progress">NEW TEXT</button>
         <div id="display-area"></div>
         <div class="controls">
             <button id="word-btn" class="ctrl-btn">WORD</button>
-            <button id="clause-btn" class="ctrl-btn">CLAUSE GAP</button>
+            <button id="clause-btn" class="ctrl-btn">CLAUSE</button>
         </div>
     </div>
 
@@ -120,25 +134,21 @@
 
     let currentWordIdx = 0;
 
-    // Load saved data on startup
     window.onload = () => {
-        const savedText = localStorage.getItem('chunker_text');
-        const savedProgress = localStorage.getItem('chunker_index');
-        const savedHTML = localStorage.getItem('chunker_html');
-
-        if (savedText && savedHTML) {
+        const savedHTML = localStorage.getItem('v5_chunker_html');
+        const savedIdx = localStorage.getItem('v5_chunker_index');
+        if (savedHTML) {
             displayArea.innerHTML = savedHTML;
-            currentWordIdx = parseInt(savedProgress) || 0;
+            currentWordIdx = parseInt(savedIdx) || 0;
             setupPage.classList.add('hidden');
             readerPage.classList.remove('hidden');
             scrollToActive();
         }
     };
 
-    function saveState() {
-        localStorage.setItem('chunker_text', inputText.value);
-        localStorage.setItem('chunker_index', currentWordIdx);
-        localStorage.setItem('chunker_html', displayArea.innerHTML);
+    function save() {
+        localStorage.setItem('v5_chunker_html', displayArea.innerHTML);
+        localStorage.setItem('v5_chunker_index', currentWordIdx);
     }
 
     startBtn.addEventListener('click', () => {
@@ -149,7 +159,7 @@
         setupPage.classList.add('hidden');
         readerPage.classList.remove('hidden');
         currentWordIdx = 0;
-        saveState();
+        save();
     });
 
     function nextWord() {
@@ -163,20 +173,21 @@
             }
             scrollToActive();
             currentWordIdx++;
-            saveState();
+            save();
         }
     }
 
     function endClause() {
-        const activeWords = document.querySelectorAll('.word.active:not(.clause-locked)');
+        const activeWords = Array.from(document.querySelectorAll('.word.active:not(.clause-locked)'));
         if (activeWords.length > 0) {
             activeWords.forEach(word => {
                 word.classList.add('clause-locked');
                 word.classList.remove('active');
             });
-            // Mark the very last word of this group to create the gap
-            activeWords[activeWords.length - 1].classList.add('clause-end');
-            saveState();
+            // Mark start and end with anchor classes
+            activeWords[0].classList.add('clause-anchor-start');
+            activeWords[activeWords.length - 1].classList.add('clause-anchor-end');
+            save();
         }
     }
 
