@@ -3,177 +3,193 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clause Chunker Reader</title>
+    <title>Clause Chunker Pro</title>
     <style>
         :root {
-            --bg-color: #121212;
-            --surface-color: #1e1e1e;
-            --text-color: #e0e0e0;
-            --word-bg: #333333;
-            --clause-bg: #4a90e2;
-            --accent-color: #bb86fc;
+            --bg-color: #0f0f0f;
+            --surface-color: #1a1a1a;
+            --text-dim: #666;
+            --text-active: #ffffff;
+            --word-highlight: #444; /* Gray background for active words */
+            --clause-highlight: #2e5cb8; /* Distinct blue for finished clauses */
+            --btn-word: #3d3d3d;
+            --btn-clause: #bb86fc;
         }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
             background-color: var(--bg-color);
-            color: var(--text-color);
+            color: var(--text-active);
+            font-family: sans-serif;
+            overflow: hidden;
+        }
+
+        /* View Switching Logic */
+        .hidden { display: none !important; }
+
+        /* Setup Page */
+        #setup-page {
             display: flex;
             flex-direction: column;
-            align-items: center;
-            margin: 0;
             padding: 20px;
             height: 100vh;
-        }
-
-        #container {
-            width: 100%;
-            max-width: 800px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            height: 90%;
+            box-sizing: border-box;
         }
 
         textarea {
-            width: 100%;
-            height: 150px;
-            background: var(--surface-color);
-            color: var(--text-color);
-            border: 1px solid #444;
-            border-radius: 8px;
-            padding: 15px;
-            font-size: 16px;
-            resize: none;
-        }
-
-        #reader-area {
             flex-grow: 1;
             background: var(--surface-color);
-            border-radius: 8px;
+            color: white;
+            border: 1px solid #333;
+            border-radius: 12px;
             padding: 20px;
-            overflow-y: auto;
-            line-height: 2.5;
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        #start-btn {
+            padding: 20px;
+            background: var(--btn-clause);
+            border: none;
+            border-radius: 12px;
+            font-weight: bold;
             font-size: 20px;
+            cursor: pointer;
+        }
+
+        /* Reader Page */
+        #reader-page {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        #display-area {
+            flex: 1;
+            padding: 40px 20px;
+            overflow-y: auto;
+            line-height: 1.8;
+            font-size: 24px;
+            text-align: left;
+            padding-bottom: 50vh; /* Allow scrolling past text */
         }
 
         .word {
             display: inline-block;
-            margin: 2px 4px;
-            padding: 2px 8px;
-            background-color: var(--word-bg);
+            margin: 0 4px;
+            padding: 2px 6px;
             border-radius: 4px;
-            transition: all 0.2s;
-            cursor: pointer;
+            color: var(--text-dim);
+            transition: background 0.1s;
         }
 
-        .word.chunked {
-            background-color: var(--clause-bg);
+        /* Active: The "Word" button was pressed */
+        .word.active {
+            background-color: var(--word-highlight);
             color: white;
-            font-weight: bold;
         }
 
+        /* Clause: The "Clause" button was pressed */
+        .word.clause-locked {
+            background-color: var(--clause-highlight) !important;
+            color: white !important;
+            margin-right: 12px; /* Adds a visual break between clauses */
+        }
+
+        /* Controls Area */
         .controls {
             display: flex;
-            gap: 10px;
-            justify-content: center;
+            height: 40vh;
+            width: 100%;
+            border-top: 2px solid #333;
         }
 
-        button {
-            padding: 15px 30px;
-            font-size: 18px;
-            font-weight: bold;
+        .ctrl-btn {
+            flex: 1;
             border: none;
-            border-radius: 8px;
+            color: black;
+            font-weight: bold;
+            font-size: 24px;
             cursor: pointer;
-            transition: opacity 0.2s;
+            transition: opacity 0.1s;
         }
 
-        #btn-chunk {
-            background-color: var(--accent-color);
-            color: #000;
-            flex-grow: 1;
-        }
+        #word-btn { background-color: #a0a0a0; border-right: 1px solid #000; }
+        #clause-btn { background-color: var(--btn-clause); }
 
-        #btn-process {
-            background-color: #03dac6;
-            color: #000;
-        }
-
-        button:hover {
-            opacity: 0.9;
-        }
-
-        button:active {
-            transform: scale(0.98);
-        }
+        .ctrl-btn:active { opacity: 0.7; }
     </style>
 </head>
 <body>
 
-<div id="container">
-    <textarea id="input-text" placeholder="Paste your long text here..."></textarea>
-    
-    <div class="controls">
-        <button id="btn-process">Start Reading</button>
+    <div id="setup-page">
+        <h2 style="text-align: center;">Paste Your Text</h2>
+        <textarea id="input-text" placeholder="Paste long text here..."></textarea>
+        <button id="start-btn">GO TO READING MODE</button>
     </div>
 
-    <div id="reader-area">
-        Your processed text will appear here. Click "Start Reading" to begin.
+    <div id="reader-page" class="hidden">
+        <div id="display-area"></div>
+        
+        <div class="controls">
+            <button id="word-btn" class="ctrl-btn">NEXT WORD<br>(Left / A)</button>
+            <button id="clause-btn" class="ctrl-btn">END CLAUSE<br>(Right / D)</button>
+        </div>
     </div>
-
-    <div class="controls">
-        <button id="btn-chunk">CHUNCK CLAUSE (Spacebar)</button>
-    </div>
-</div>
 
 <script>
+    const setupPage = document.getElementById('setup-page');
+    const readerPage = document.getElementById('reader-page');
     const inputText = document.getElementById('input-text');
-    const btnProcess = document.getElementById('btn-process');
-    const btnChunk = document.getElementById('btn-chunk');
-    const readerArea = document.getElementById('reader-area');
+    const startBtn = document.getElementById('start-btn');
+    const displayArea = document.getElementById('display-area');
+    
+    const wordBtn = document.getElementById('word-btn');
+    const clauseBtn = document.getElementById('clause-btn');
 
-    let wordsArray = [];
-    let currentIdx = 0;
+    let currentWordIdx = 0;
 
-    // Process text into individual word spans
-    btnProcess.addEventListener('click', () => {
+    startBtn.addEventListener('click', () => {
         const text = inputText.value.trim();
         if (!text) return;
 
-        readerArea.innerHTML = '';
-        wordsArray = text.split(/\s+/);
-        currentIdx = 0;
-
-        wordsArray.forEach((word, index) => {
-            const span = document.createElement('span');
-            span.textContent = word;
-            span.classList.add('word');
-            span.id = `word-${index}`;
-            readerArea.appendChild(span);
-        });
+        const words = text.split(/\s+/);
+        displayArea.innerHTML = words.map((w, i) => `<span class="word" id="w-${i}">${w}</span>`).join('');
+        
+        setupPage.classList.add('hidden');
+        readerPage.classList.remove('hidden');
+        currentWordIdx = 0;
     });
 
-    // Chunking Logic
-    function markClause() {
-        // We find the next word that isn't chunked yet
-        const nextWord = document.getElementById(`word-${currentIdx}`);
-        
-        if (nextWord) {
-            nextWord.classList.add('chunked');
-            nextWord.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            currentIdx++;
+    function nextWord() {
+        const el = document.getElementById(`w-${currentWordIdx}`);
+        if (el) {
+            el.classList.add('active');
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            currentWordIdx++;
         }
     }
 
-    btnChunk.addEventListener('click', markClause);
+    function endClause() {
+        // Find all "active" words that haven't been locked into a clause yet
+        const activeWords = document.querySelectorAll('.word.active:not(.clause-locked)');
+        activeWords.forEach(word => {
+            word.classList.add('clause-locked');
+        });
+    }
 
-    // Keyboard shortcut: Press Space to chunk
+    // Button Listeners
+    wordBtn.addEventListener('mousedown', (e) => { e.preventDefault(); nextWord(); });
+    clauseBtn.addEventListener('mousedown', (e) => { e.preventDefault(); endClause(); });
+
+    // Keyboard Shortcuts for comfort
     window.addEventListener('keydown', (e) => {
-        if (e.code === 'Space' && document.activeElement !== inputText) {
-            e.preventDefault(); // Prevent page scrolling
-            markClause();
-        }
+        if (readerPage.classList.contains('hidden')) return;
+        
+        if (e.key === 'a' || e.key === 'ArrowLeft') nextWord();
+        if (e.key === 'd' || e.key === 'ArrowRight') endClause();
     });
 </script>
 
