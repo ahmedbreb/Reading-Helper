@@ -3,19 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Alternating Clause Reader</title>
+    <title>Custom Clause Reader</title>
     <style>
         :root {
             --bg-color: #080808;
             --surface-color: #111;
             --text-dim: #444;
             --text-active: #ffffff;
-            --word-highlight: #222; /* Gray for currently reading word */
-            
-            /* Two distinct variations of deep blue for the clauses */
+            --word-highlight: #222;
             --clause-a: #162e45; 
             --clause-b: #0a1a2b;
-            
             --btn-bg: #0f0f0f;
             --btn-border: #1a1a1a;
         }
@@ -30,31 +27,46 @@
 
         .hidden { display: none !important; }
 
+        /* Setup Page */
         #setup-page {
             display: flex; flex-direction: column;
             padding: 20px; height: 100vh; box-sizing: border-box;
             justify-content: center; max-width: 800px; margin: 0 auto;
         }
 
+        .settings-bar {
+            background: var(--surface-color);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: #888;
+            font-size: 14px;
+        }
+
+        input[type=range] { flex-grow: 1; cursor: pointer; }
+
         textarea {
-            height: 60%; background: var(--surface-color);
+            height: 50%; background: var(--surface-color);
             color: white; border: 1px solid var(--btn-border);
             border-radius: 8px; padding: 20px; font-size: 18px;
-            margin-bottom: 20px; outline: none;
+            margin-bottom: 20px; outline: none; resize: none;
         }
 
         #start-btn {
-            padding: 15px; background: var(--btn-bg); color: #555;
+            padding: 15px; background: var(--btn-bg); color: #888;
             border: 1px solid var(--btn-border); border-radius: 8px;
-            font-size: 16px; cursor: pointer;
+            font-size: 16px; cursor: pointer; letter-spacing: 2px;
         }
 
+        /* Reader Page */
         #reader-page { display: flex; flex-direction: column; height: 100vh; }
 
         #display-area {
             flex: 1; padding: 40px 25px; overflow-y: auto;
             line-height: 2.8; 
-            font-size: 22px;
             padding-bottom: 50vh;
         }
 
@@ -63,37 +75,24 @@
             padding: 2px 0;
             color: var(--text-dim);
             white-space: pre;
-            transition: background 0.1s;
         }
 
-        /* The word currently being "read" (Left Button) */
-        .word.active {
-            background-color: var(--word-highlight);
-            color: #bbb;
-        }
+        .word.active { background-color: var(--word-highlight); color: #bbb; }
+        .word.clause-locked { color: white !important; }
 
-        /* General Clause Style */
-        .word.clause-locked {
-            color: white !important;
-        }
-
-        /* ALTERNATING COLORS */
         .clause-v-a { background-color: var(--clause-a) !important; }
         .clause-v-b { background-color: var(--clause-b) !important; }
 
-        /* MARKERS (Visual Padding at Start/End) */
         .marker-start {
             padding-left: 12px !important;
-            border-top-left-radius: 10px;
-            border-bottom-left-radius: 10px;
-            margin-left: 10px; /* Physical gap before the start marker */
+            border-top-left-radius: 10px; border-bottom-left-radius: 10px;
+            margin-left: 10px;
         }
 
         .marker-end {
             padding-right: 12px !important;
-            border-top-right-radius: 10px;
-            border-bottom-right-radius: 10px;
-            margin-right: 35px; /* Physical gap after the end marker */
+            border-top-right-radius: 10px; border-bottom-right-radius: 10px;
+            margin-right: 35px;
         }
 
         .controls { display: flex; height: 35vh; width: 100%; background: var(--bg-color); }
@@ -115,12 +114,17 @@
 <body>
 
     <div id="setup-page">
+        <div class="settings-bar">
+            <label>Reader Font Size:</label>
+            <input type="range" id="font-slider" min="16" max="40" value="22">
+            <span id="font-value">22px</span>
+        </div>
         <textarea id="input-text" placeholder="Paste your text..."></textarea>
-        <button id="start-btn">READ</button>
+        <button id="start-btn">BEGIN READING</button>
     </div>
 
     <div id="reader-page" class="hidden">
-        <button id="reset-progress">NEW</button>
+        <button id="reset-progress">NEW TEXT</button>
         <div id="display-area"></div>
         <div class="controls">
             <button id="word-btn" class="ctrl-btn">WORD</button>
@@ -137,14 +141,25 @@
     const resetBtn = document.getElementById('reset-progress');
     const wordBtn = document.getElementById('word-btn');
     const clauseBtn = document.getElementById('clause-btn');
+    const fontSlider = document.getElementById('font-slider');
+    const fontValue = document.getElementById('font-value');
 
     let currentWordIdx = 0;
     let clauseCounter = 0;
 
+    // Load saved data
     window.onload = () => {
-        const savedHTML = localStorage.getItem('v7_html');
-        const savedIdx = localStorage.getItem('v7_idx');
-        const savedCount = localStorage.getItem('v7_count');
+        const savedHTML = localStorage.getItem('v8_html');
+        const savedIdx = localStorage.getItem('v8_idx');
+        const savedCount = localStorage.getItem('v8_count');
+        const savedFont = localStorage.getItem('v8_font');
+
+        if (savedFont) {
+            fontSlider.value = savedFont;
+            fontValue.textContent = savedFont + "px";
+            displayArea.style.fontSize = savedFont + "px";
+        }
+
         if (savedHTML) {
             displayArea.innerHTML = savedHTML;
             currentWordIdx = parseInt(savedIdx) || 0;
@@ -155,10 +170,16 @@
         }
     };
 
+    fontSlider.addEventListener('input', () => {
+        fontValue.textContent = fontSlider.value + "px";
+        displayArea.style.fontSize = fontSlider.value + "px";
+        localStorage.setItem('v8_font', fontSlider.value);
+    });
+
     function save() {
-        localStorage.setItem('v7_html', displayArea.innerHTML);
-        localStorage.setItem('v7_idx', currentWordIdx);
-        localStorage.setItem('v7_count', clauseCounter);
+        localStorage.setItem('v8_html', displayArea.innerHTML);
+        localStorage.setItem('v8_idx', currentWordIdx);
+        localStorage.setItem('v8_count', clauseCounter);
     }
 
     startBtn.addEventListener('click', () => {
@@ -191,19 +212,13 @@
     function endClause() {
         const activeWords = Array.from(document.querySelectorAll('.word.active:not(.clause-locked)'));
         if (activeWords.length > 0) {
-            // Pick variation A or B based on count
             const variationClass = (clauseCounter % 2 === 0) ? 'clause-v-a' : 'clause-v-b';
-            
             activeWords.forEach((word, idx) => {
                 word.classList.remove('active');
-                word.classList.add('clause-locked');
-                word.classList.add(variationClass); // Color the word background
-                
-                // Add marker classes for the very first and last word of this block
+                word.classList.add('clause-locked', variationClass);
                 if (idx === 0) word.classList.add('marker-start');
                 if (idx === activeWords.length - 1) word.classList.add('marker-end');
             });
-            
             clauseCounter++;
             save();
         }
