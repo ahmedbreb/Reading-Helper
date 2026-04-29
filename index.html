@@ -3,133 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visual Clause Reader</title>
+    <title>Persistent Clause Reader</title>
     <style>
         :root {
             --bg-color: #0a0a0a;
             --surface-color: #151515;
             --text-dim: #444;
             --text-active: #ffffff;
-            --word-highlight: #2a2a2a; /* Subtle gray for active words */
-            --clause-highlight: #1a3a5a; /* Deep blue for solid clauses */
+            --word-highlight: #2a2a2a;
+            --clause-highlight: #1a3a5a; 
             --btn-bg: #1a1a1a;
             --btn-border: #333;
         }
 
         body, html {
-            margin: 0;
-            padding: 0;
-            height: 100%;
+            margin: 0; padding: 0; height: 100%;
             background-color: var(--bg-color);
             color: var(--text-active);
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-family: sans-serif;
             overflow: hidden;
         }
 
         .hidden { display: none !important; }
 
-        /* Setup Page */
         #setup-page {
-            display: flex;
-            flex-direction: column;
-            padding: 20px;
-            height: 100vh;
-            box-sizing: border-box;
-            justify-content: center;
-            max-width: 800px;
-            margin: 0 auto;
+            display: flex; flex-direction: column;
+            padding: 20px; height: 100vh; box-sizing: border-box;
+            justify-content: center; max-width: 800px; margin: 0 auto;
         }
 
         textarea {
-            flex-grow: 0;
-            height: 60%;
-            background: var(--surface-color);
-            color: white;
-            border: 1px solid var(--btn-border);
-            border-radius: 8px;
-            padding: 20px;
-            font-size: 18px;
-            margin-bottom: 20px;
-            outline: none;
+            height: 60%; background: var(--surface-color);
+            color: white; border: 1px solid var(--btn-border);
+            border-radius: 8px; padding: 20px; font-size: 18px;
+            margin-bottom: 20px; outline: none;
         }
 
         #start-btn {
-            padding: 15px;
-            background: var(--btn-bg);
-            color: #888;
-            border: 1px solid var(--btn-border);
-            border-radius: 8px;
-            font-size: 18px;
-            cursor: pointer;
+            padding: 15px; background: var(--btn-bg); color: #888;
+            border: 1px solid var(--btn-border); border-radius: 8px;
+            font-size: 18px; cursor: pointer;
         }
 
-        /* Reader Page */
-        #reader-page {
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-        }
+        #reader-page { display: flex; flex-direction: column; height: 100vh; }
 
         #display-area {
-            flex: 1;
-            padding: 60px 30px;
-            overflow-y: auto;
-            line-height: 2.2;
-            font-size: 26px;
-            padding-bottom: 50vh;
+            flex: 1; padding: 60px 30px; overflow-y: auto;
+            line-height: 2.5; font-size: 26px; padding-bottom: 50vh;
         }
 
         .word {
-            display: inline; /* Changed to inline for seamless blocks */
+            display: inline-block; /* Changed back to inline-block for gap support */
             padding: 4px 0;
             color: var(--text-dim);
-            transition: background 0.1s, color 0.1s;
-            white-space: pre-wrap;
+            white-space: pre;
+            transition: margin 0.2s;
         }
 
-        /* Active highlight for single words */
         .word.active {
             background-color: var(--word-highlight);
             color: #ccc;
         }
 
-        /* Seamless Clause Highlight */
         .word.clause-locked {
             background-color: var(--clause-highlight) !important;
             color: white !important;
-            padding-top: 6px;
-            padding-bottom: 6px;
         }
 
-        /* This removes gaps between highlighted words in the same clause */
-        .word.clause-locked + .word.clause-locked {
-            margin-left: 0;
+        /* The Clause Gap: Adds space after the last word of a clause */
+        .word.clause-end {
+            margin-right: 25px; 
+            border-top-right-radius: 6px;
+            border-bottom-right-radius: 6px;
         }
 
-        /* Controls Area */
-        .controls {
-            display: flex;
-            height: 35vh;
-            width: 100%;
-            background: var(--bg-color);
-        }
+        .controls { display: flex; height: 35vh; width: 100%; background: var(--bg-color); }
 
         .ctrl-btn {
-            flex: 1;
-            background: var(--btn-bg);
-            border: 1px solid var(--btn-border);
-            color: #555; /* Dim, non-distracting text */
-            font-size: 16px;
-            cursor: pointer;
-            outline: none;
+            flex: 1; background: var(--btn-bg); border: 1px solid var(--btn-border);
+            color: #555; font-size: 16px; cursor: pointer; outline: none;
             -webkit-tap-highlight-color: transparent;
         }
 
-        .ctrl-btn:active {
-            background: #222;
+        #reset-progress {
+            position: absolute; top: 10px; right: 10px;
+            background: none; border: 1px solid #333; color: #444;
+            padding: 5px 10px; border-radius: 4px; font-size: 12px;
         }
-
-        #word-btn { border-right: none; }
     </style>
 </head>
 <body>
@@ -140,11 +100,11 @@
     </div>
 
     <div id="reader-page" class="hidden">
+        <button id="reset-progress">New Text</button>
         <div id="display-area"></div>
-        
         <div class="controls">
             <button id="word-btn" class="ctrl-btn">WORD</button>
-            <button id="clause-btn" class="ctrl-btn">CLAUSE</button>
+            <button id="clause-btn" class="ctrl-btn">CLAUSE GAP</button>
         </div>
     </div>
 
@@ -154,56 +114,85 @@
     const inputText = document.getElementById('input-text');
     const startBtn = document.getElementById('start-btn');
     const displayArea = document.getElementById('display-area');
-    
+    const resetBtn = document.getElementById('reset-progress');
     const wordBtn = document.getElementById('word-btn');
     const clauseBtn = document.getElementById('clause-btn');
 
     let currentWordIdx = 0;
 
+    // Load saved data on startup
+    window.onload = () => {
+        const savedText = localStorage.getItem('chunker_text');
+        const savedProgress = localStorage.getItem('chunker_index');
+        const savedHTML = localStorage.getItem('chunker_html');
+
+        if (savedText && savedHTML) {
+            displayArea.innerHTML = savedHTML;
+            currentWordIdx = parseInt(savedProgress) || 0;
+            setupPage.classList.add('hidden');
+            readerPage.classList.remove('hidden');
+            scrollToActive();
+        }
+    };
+
+    function saveState() {
+        localStorage.setItem('chunker_text', inputText.value);
+        localStorage.setItem('chunker_index', currentWordIdx);
+        localStorage.setItem('chunker_html', displayArea.innerHTML);
+    }
+
     startBtn.addEventListener('click', () => {
         const text = inputText.value.trim();
         if (!text) return;
-
-        // Split text but keep spaces to ensure the "solid block" look
         const words = text.split(/(\s+)/);
-        displayArea.innerHTML = words.map((w, i) => {
-            if (w.trim() === "") return `<span class="word space" id="w-${i}">${w}</span>`;
-            return `<span class="word" id="w-${i}">${w}</span>`;
-        }).join('');
-        
+        displayArea.innerHTML = words.map((w, i) => `<span class="word" id="w-${i}">${w}</span>`).join('');
         setupPage.classList.add('hidden');
         readerPage.classList.remove('hidden');
         currentWordIdx = 0;
+        saveState();
     });
 
     function nextWord() {
         const el = document.getElementById(`w-${currentWordIdx}`);
         if (el) {
             el.classList.add('active');
-            // If it's a space, auto-jump to the next actual word for speed
-            if (el.classList.contains('space')) {
+            if (el.textContent.trim() === "") {
                 currentWordIdx++;
                 nextWord();
                 return;
             }
-            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            scrollToActive();
             currentWordIdx++;
+            saveState();
         }
     }
 
     function endClause() {
         const activeWords = document.querySelectorAll('.word.active:not(.clause-locked)');
-        activeWords.forEach(word => {
-            word.classList.add('clause-locked');
-            word.classList.remove('active');
-        });
+        if (activeWords.length > 0) {
+            activeWords.forEach(word => {
+                word.classList.add('clause-locked');
+                word.classList.remove('active');
+            });
+            // Mark the very last word of this group to create the gap
+            activeWords[activeWords.length - 1].classList.add('clause-end');
+            saveState();
+        }
     }
 
-    // Input events
+    function scrollToActive() {
+        const el = document.getElementById(`w-${currentWordIdx}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    resetBtn.addEventListener('click', () => {
+        localStorage.clear();
+        location.reload();
+    });
+
     wordBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); nextWord(); });
     clauseBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); endClause(); });
 
-    // Keyboard Shortcuts
     window.addEventListener('keydown', (e) => {
         if (readerPage.classList.contains('hidden')) return;
         if (e.key === 'a' || e.key === 'ArrowLeft') nextWord();
