@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fixed Clause Reader</title>
+    <title>Perfect Clause Reader</title>
     <style>
         :root {
             --bg-color: #080808;
             --surface-color: #111;
-            --text-dim: #444;
+            --text-dim: #333; /* Dimmer unread text */
             --text-active: #ffffff;
             --word-highlight: #222;
             --clause-a: #162e45; 
@@ -59,43 +59,46 @@
 
         #display-area {
             flex: 1; padding: 40px 25px; overflow-y: auto;
-            line-height: 1.8; /* Adjusted for better flow */
+            line-height: 2.2; 
             padding-bottom: 50vh;
         }
 
-        /* Essential Fix: Using inline to prevent the "staircase" effect seen in your screenshot */
+        /* The paragraph container fix */
+        .paragraph {
+            margin-bottom: 1.5em;
+            display: block;
+        }
+
         .word {
             display: inline; 
-            padding: 2px 0;
+            padding: 4px 0;
             color: var(--text-dim);
-            white-space: pre-wrap; /* Allows natural wrapping */
+            white-space: pre-wrap;
             font-size: inherit;
+            box-decoration-break: clone; /* Keeps highlights consistent across wraps */
+            -webkit-box-decoration-break: clone;
         }
 
         .word.active { background-color: var(--word-highlight); color: #bbb; }
         
-        .word.clause-locked { 
-            color: white !important;
-            padding: 4px 0;
-        }
+        .word.clause-locked { color: white !important; }
 
-        /* Alternating Colors */
         .clause-v-a { background-color: var(--clause-a) !important; }
         .clause-v-b { background-color: var(--clause-b) !important; }
 
-        /* The "Markers" - Using border-radius on the ends only */
+        /* The Visual "Capsule" Fix */
         .marker-start {
             padding-left: 10px !important;
             border-top-left-radius: 8px;
             border-bottom-left-radius: 8px;
-            margin-left: 8px;
+            margin-left: 5px;
         }
 
         .marker-end {
             padding-right: 10px !important;
             border-top-right-radius: 8px;
             border-bottom-right-radius: 8px;
-            margin-right: 30px; /* The physical gap between clauses */
+            margin-right: 30px; 
         }
 
         .controls { display: flex; height: 35vh; width: 100%; background: var(--bg-color); border-top: 1px solid #1a1a1a; }
@@ -153,10 +156,10 @@
     let clauseCounter = 0;
 
     window.onload = () => {
-        const savedHTML = localStorage.getItem('v9_html');
-        const savedIdx = localStorage.getItem('v9_idx');
-        const savedCount = localStorage.getItem('v9_count');
-        const savedFont = localStorage.getItem('v9_font');
+        const savedHTML = localStorage.getItem('v10_html');
+        const savedIdx = localStorage.getItem('v10_idx');
+        const savedCount = localStorage.getItem('v10_count');
+        const savedFont = localStorage.getItem('v10_font');
 
         if (savedFont) {
             fontSlider.value = savedFont;
@@ -177,21 +180,33 @@
     fontSlider.addEventListener('input', () => {
         fontValue.textContent = fontSlider.value + "px";
         displayArea.style.fontSize = fontSlider.value + "px";
-        localStorage.setItem('v9_font', fontSlider.value);
+        localStorage.setItem('v10_font', fontSlider.value);
     });
 
     function save() {
-        localStorage.setItem('v9_html', displayArea.innerHTML);
-        localStorage.setItem('v9_idx', currentWordIdx);
-        localStorage.setItem('v9_count', clauseCounter);
+        localStorage.setItem('v10_html', displayArea.innerHTML);
+        localStorage.setItem('v10_idx', currentWordIdx);
+        localStorage.setItem('v10_count', clauseCounter);
     }
 
     startBtn.addEventListener('click', () => {
         const text = inputText.value.trim();
         if (!text) return;
-        // Split by words but preserve all whitespace correctly
-        const words = text.split(/(\s+)/);
-        displayArea.innerHTML = words.map((w, i) => `<span class="word" id="w-${i}">${w}</span>`).join('');
+        
+        // Split by paragraph first, then by words
+        const paragraphs = text.split(/\n+/);
+        let globalWordIdx = 0;
+        
+        displayArea.innerHTML = paragraphs.map((p) => {
+            const words = p.split(/(\s+)/);
+            const pContent = words.map((w) => {
+                const span = `<span class="word" id="w-${globalWordIdx}">${w}</span>`;
+                globalWordIdx++;
+                return span;
+            }).join('');
+            return `<div class="paragraph">${pContent}</div>`;
+        }).join('');
+
         setupPage.classList.add('hidden');
         readerPage.classList.remove('hidden');
         currentWordIdx = 0;
@@ -218,12 +233,23 @@
         const activeWords = Array.from(document.querySelectorAll('.word.active:not(.clause-locked)'));
         if (activeWords.length > 0) {
             const variationClass = (clauseCounter % 2 === 0) ? 'clause-v-a' : 'clause-v-b';
+            
             activeWords.forEach((word, idx) => {
                 word.classList.remove('active');
                 word.classList.add('clause-locked', variationClass);
-                if (idx === 0) word.classList.add('marker-start');
-                if (idx === activeWords.length - 1) word.classList.add('marker-end');
+                
+                // Identify if word is the start or end of its paragraph group
+                const isFirstInSelection = (idx === 0);
+                const isLastInSelection = (idx === activeWords.length - 1);
+                
+                // Check for physical line breaks (parent change)
+                const isNewParaStart = isFirstInSelection || (word.parentElement !== activeWords[idx-1]?.parentElement);
+                const isParaEnd = isLastInSelection || (word.parentElement !== activeWords[idx+1]?.parentElement);
+
+                if (isNewParaStart) word.classList.add('marker-start');
+                if (isParaEnd) word.classList.add('marker-end');
             });
+            
             clauseCounter++;
             save();
         }
