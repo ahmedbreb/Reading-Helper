@@ -10,11 +10,11 @@
             --surface-color: #111;
             --text-dim: #444;
             --text-active: #ffffff;
-            --word-highlight: #1a1a1a;
+            --word-highlight: #222; /* Gray for currently reading word */
             
-            /* Two variations of deep, faint blue for markers */
-            --marker-a: #0e1a2b; 
-            --marker-b: #1a1a2e;
+            /* Two distinct variations of deep blue for the clauses */
+            --clause-a: #162e45; 
+            --clause-b: #0a1a2b;
             
             --btn-bg: #0f0f0f;
             --btn-border: #1a1a1a;
@@ -53,8 +53,8 @@
 
         #display-area {
             flex: 1; padding: 40px 25px; overflow-y: auto;
-            line-height: 2.6; 
-            font-size: 22px; /* Slightly smaller as requested */
+            line-height: 2.8; 
+            font-size: 22px;
             padding-bottom: 50vh;
         }
 
@@ -63,41 +63,37 @@
             padding: 2px 0;
             color: var(--text-dim);
             white-space: pre;
-            border-radius: 4px;
+            transition: background 0.1s;
         }
 
+        /* The word currently being "read" (Left Button) */
         .word.active {
             background-color: var(--word-highlight);
             color: #bbb;
         }
 
-        /* Locked words remain untouched (no background) but white text */
+        /* General Clause Style */
         .word.clause-locked {
             color: white !important;
-            background: transparent;
         }
 
-        /* Boundary Markers (The spaces before and after) */
+        /* ALTERNATING COLORS */
+        .clause-v-a { background-color: var(--clause-a) !important; }
+        .clause-v-b { background-color: var(--clause-b) !important; }
+
+        /* MARKERS (Visual Padding at Start/End) */
         .marker-start {
-            padding-left: 8px;
-            margin-left: 10px; /* Space before */
+            padding-left: 12px !important;
+            border-top-left-radius: 10px;
+            border-bottom-left-radius: 10px;
+            margin-left: 10px; /* Physical gap before the start marker */
         }
 
         .marker-end {
-            padding-right: 8px;
-            margin-right: 25px; /* Space after / The Gap */
-        }
-
-        /* Variation A */
-        .clause-v-a .marker-start, 
-        .clause-v-a .marker-end {
-            background-color: var(--marker-a) !important;
-        }
-
-        /* Variation B */
-        .clause-v-b .marker-start, 
-        .clause-v-b .marker-end {
-            background-color: var(--marker-b) !important;
+            padding-right: 12px !important;
+            border-top-right-radius: 10px;
+            border-bottom-right-radius: 10px;
+            margin-right: 35px; /* Physical gap after the end marker */
         }
 
         .controls { display: flex; height: 35vh; width: 100%; background: var(--bg-color); }
@@ -146,9 +142,9 @@
     let clauseCounter = 0;
 
     window.onload = () => {
-        const savedHTML = localStorage.getItem('v6_html');
-        const savedIdx = localStorage.getItem('v6_idx');
-        const savedCount = localStorage.getItem('v6_count');
+        const savedHTML = localStorage.getItem('v7_html');
+        const savedIdx = localStorage.getItem('v7_idx');
+        const savedCount = localStorage.getItem('v7_count');
         if (savedHTML) {
             displayArea.innerHTML = savedHTML;
             currentWordIdx = parseInt(savedIdx) || 0;
@@ -160,9 +156,9 @@
     };
 
     function save() {
-        localStorage.setItem('v6_html', displayArea.innerHTML);
-        localStorage.setItem('v6_idx', currentWordIdx);
-        localStorage.setItem('v6_count', clauseCounter);
+        localStorage.setItem('v7_html', displayArea.innerHTML);
+        localStorage.setItem('v7_idx', currentWordIdx);
+        localStorage.setItem('v7_count', clauseCounter);
     }
 
     startBtn.addEventListener('click', () => {
@@ -195,15 +191,15 @@
     function endClause() {
         const activeWords = Array.from(document.querySelectorAll('.word.active:not(.clause-locked)'));
         if (activeWords.length > 0) {
-            // Determine variation A or B
+            // Pick variation A or B based on count
             const variationClass = (clauseCounter % 2 === 0) ? 'clause-v-a' : 'clause-v-b';
             
             activeWords.forEach((word, idx) => {
-                word.classList.add('clause-locked');
-                word.classList.add(variationClass); // Assign variation to the whole group
                 word.classList.remove('active');
+                word.classList.add('clause-locked');
+                word.classList.add(variationClass); // Color the word background
                 
-                // Add marker classes to the start and end words
+                // Add marker classes for the very first and last word of this block
                 if (idx === 0) word.classList.add('marker-start');
                 if (idx === activeWords.length - 1) word.classList.add('marker-end');
             });
