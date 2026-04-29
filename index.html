@@ -3,17 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clause Chunker Pro</title>
+    <title>Visual Clause Reader</title>
     <style>
         :root {
-            --bg-color: #0f0f0f;
-            --surface-color: #1a1a1a;
-            --text-dim: #666;
+            --bg-color: #0a0a0a;
+            --surface-color: #151515;
+            --text-dim: #444;
             --text-active: #ffffff;
-            --word-highlight: #444; /* Gray background for active words */
-            --clause-highlight: #2e5cb8; /* Distinct blue for finished clauses */
-            --btn-word: #3d3d3d;
-            --btn-clause: #bb86fc;
+            --word-highlight: #2a2a2a; /* Subtle gray for active words */
+            --clause-highlight: #1a3a5a; /* Deep blue for solid clauses */
+            --btn-bg: #1a1a1a;
+            --btn-border: #333;
         }
 
         body, html {
@@ -22,11 +22,10 @@
             height: 100%;
             background-color: var(--bg-color);
             color: var(--text-active);
-            font-family: sans-serif;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
             overflow: hidden;
         }
 
-        /* View Switching Logic */
         .hidden { display: none !important; }
 
         /* Setup Page */
@@ -36,26 +35,31 @@
             padding: 20px;
             height: 100vh;
             box-sizing: border-box;
+            justify-content: center;
+            max-width: 800px;
+            margin: 0 auto;
         }
 
         textarea {
-            flex-grow: 1;
+            flex-grow: 0;
+            height: 60%;
             background: var(--surface-color);
             color: white;
-            border: 1px solid #333;
-            border-radius: 12px;
+            border: 1px solid var(--btn-border);
+            border-radius: 8px;
             padding: 20px;
             font-size: 18px;
             margin-bottom: 20px;
+            outline: none;
         }
 
         #start-btn {
-            padding: 20px;
-            background: var(--btn-clause);
-            border: none;
-            border-radius: 12px;
-            font-weight: bold;
-            font-size: 20px;
+            padding: 15px;
+            background: var(--btn-bg);
+            color: #888;
+            border: 1px solid var(--btn-border);
+            border-radius: 8px;
+            font-size: 18px;
             cursor: pointer;
         }
 
@@ -68,74 +72,79 @@
 
         #display-area {
             flex: 1;
-            padding: 40px 20px;
+            padding: 60px 30px;
             overflow-y: auto;
-            line-height: 1.8;
-            font-size: 24px;
-            text-align: left;
-            padding-bottom: 50vh; /* Allow scrolling past text */
+            line-height: 2.2;
+            font-size: 26px;
+            padding-bottom: 50vh;
         }
 
         .word {
-            display: inline-block;
-            margin: 0 4px;
-            padding: 2px 6px;
-            border-radius: 4px;
+            display: inline; /* Changed to inline for seamless blocks */
+            padding: 4px 0;
             color: var(--text-dim);
-            transition: background 0.1s;
+            transition: background 0.1s, color 0.1s;
+            white-space: pre-wrap;
         }
 
-        /* Active: The "Word" button was pressed */
+        /* Active highlight for single words */
         .word.active {
             background-color: var(--word-highlight);
-            color: white;
+            color: #ccc;
         }
 
-        /* Clause: The "Clause" button was pressed */
+        /* Seamless Clause Highlight */
         .word.clause-locked {
             background-color: var(--clause-highlight) !important;
             color: white !important;
-            margin-right: 12px; /* Adds a visual break between clauses */
+            padding-top: 6px;
+            padding-bottom: 6px;
+        }
+
+        /* This removes gaps between highlighted words in the same clause */
+        .word.clause-locked + .word.clause-locked {
+            margin-left: 0;
         }
 
         /* Controls Area */
         .controls {
             display: flex;
-            height: 40vh;
+            height: 35vh;
             width: 100%;
-            border-top: 2px solid #333;
+            background: var(--bg-color);
         }
 
         .ctrl-btn {
             flex: 1;
-            border: none;
-            color: black;
-            font-weight: bold;
-            font-size: 24px;
+            background: var(--btn-bg);
+            border: 1px solid var(--btn-border);
+            color: #555; /* Dim, non-distracting text */
+            font-size: 16px;
             cursor: pointer;
-            transition: opacity 0.1s;
+            outline: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        #word-btn { background-color: #a0a0a0; border-right: 1px solid #000; }
-        #clause-btn { background-color: var(--btn-clause); }
+        .ctrl-btn:active {
+            background: #222;
+        }
 
-        .ctrl-btn:active { opacity: 0.7; }
+        #word-btn { border-right: none; }
     </style>
 </head>
 <body>
 
     <div id="setup-page">
-        <h2 style="text-align: center;">Paste Your Text</h2>
-        <textarea id="input-text" placeholder="Paste long text here..."></textarea>
-        <button id="start-btn">GO TO READING MODE</button>
+        <textarea id="input-text" placeholder="Paste text here..."></textarea>
+        <button id="start-btn">Start Reading</button>
     </div>
 
     <div id="reader-page" class="hidden">
         <div id="display-area"></div>
         
         <div class="controls">
-            <button id="word-btn" class="ctrl-btn">NEXT WORD<br>(Left / A)</button>
-            <button id="clause-btn" class="ctrl-btn">END CLAUSE<br>(Right / D)</button>
+            <button id="word-btn" class="ctrl-btn">WORD</button>
+            <button id="clause-btn" class="ctrl-btn">CLAUSE</button>
         </div>
     </div>
 
@@ -155,8 +164,12 @@
         const text = inputText.value.trim();
         if (!text) return;
 
-        const words = text.split(/\s+/);
-        displayArea.innerHTML = words.map((w, i) => `<span class="word" id="w-${i}">${w}</span>`).join('');
+        // Split text but keep spaces to ensure the "solid block" look
+        const words = text.split(/(\s+)/);
+        displayArea.innerHTML = words.map((w, i) => {
+            if (w.trim() === "") return `<span class="word space" id="w-${i}">${w}</span>`;
+            return `<span class="word" id="w-${i}">${w}</span>`;
+        }).join('');
         
         setupPage.classList.add('hidden');
         readerPage.classList.remove('hidden');
@@ -167,27 +180,32 @@
         const el = document.getElementById(`w-${currentWordIdx}`);
         if (el) {
             el.classList.add('active');
+            // If it's a space, auto-jump to the next actual word for speed
+            if (el.classList.contains('space')) {
+                currentWordIdx++;
+                nextWord();
+                return;
+            }
             el.scrollIntoView({ behavior: 'smooth', block: 'center' });
             currentWordIdx++;
         }
     }
 
     function endClause() {
-        // Find all "active" words that haven't been locked into a clause yet
         const activeWords = document.querySelectorAll('.word.active:not(.clause-locked)');
         activeWords.forEach(word => {
             word.classList.add('clause-locked');
+            word.classList.remove('active');
         });
     }
 
-    // Button Listeners
-    wordBtn.addEventListener('mousedown', (e) => { e.preventDefault(); nextWord(); });
-    clauseBtn.addEventListener('mousedown', (e) => { e.preventDefault(); endClause(); });
+    // Input events
+    wordBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); nextWord(); });
+    clauseBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); endClause(); });
 
-    // Keyboard Shortcuts for comfort
+    // Keyboard Shortcuts
     window.addEventListener('keydown', (e) => {
         if (readerPage.classList.contains('hidden')) return;
-        
         if (e.key === 'a' || e.key === 'ArrowLeft') nextWord();
         if (e.key === 'd' || e.key === 'ArrowRight') endClause();
     });
