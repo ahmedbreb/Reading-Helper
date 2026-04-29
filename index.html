@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Custom Clause Reader</title>
+    <title>Fixed Clause Reader</title>
     <style>
         :root {
             --bg-color: #080808;
@@ -27,7 +27,6 @@
 
         .hidden { display: none !important; }
 
-        /* Setup Page */
         #setup-page {
             display: flex; flex-direction: column;
             padding: 20px; height: 100vh; box-sizing: border-box;
@@ -36,17 +35,12 @@
 
         .settings-bar {
             background: var(--surface-color);
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            color: #888;
-            font-size: 14px;
+            padding: 15px; border-radius: 8px; margin-bottom: 15px;
+            display: flex; align-items: center; gap: 15px;
+            color: #888; font-size: 14px;
         }
 
-        input[type=range] { flex-grow: 1; cursor: pointer; }
+        input[type=range] { flex-grow: 1; }
 
         textarea {
             height: 50%; background: var(--surface-color);
@@ -58,56 +52,67 @@
         #start-btn {
             padding: 15px; background: var(--btn-bg); color: #888;
             border: 1px solid var(--btn-border); border-radius: 8px;
-            font-size: 16px; cursor: pointer; letter-spacing: 2px;
+            font-size: 16px; cursor: pointer;
         }
 
-        /* Reader Page */
         #reader-page { display: flex; flex-direction: column; height: 100vh; }
 
         #display-area {
             flex: 1; padding: 40px 25px; overflow-y: auto;
-            line-height: 2.8; 
+            line-height: 1.8; /* Adjusted for better flow */
             padding-bottom: 50vh;
         }
 
+        /* Essential Fix: Using inline to prevent the "staircase" effect seen in your screenshot */
         .word {
-            display: inline-block;
+            display: inline; 
             padding: 2px 0;
             color: var(--text-dim);
-            white-space: pre;
+            white-space: pre-wrap; /* Allows natural wrapping */
+            font-size: inherit;
         }
 
         .word.active { background-color: var(--word-highlight); color: #bbb; }
-        .word.clause-locked { color: white !important; }
+        
+        .word.clause-locked { 
+            color: white !important;
+            padding: 4px 0;
+        }
 
+        /* Alternating Colors */
         .clause-v-a { background-color: var(--clause-a) !important; }
         .clause-v-b { background-color: var(--clause-b) !important; }
 
+        /* The "Markers" - Using border-radius on the ends only */
         .marker-start {
-            padding-left: 12px !important;
-            border-top-left-radius: 10px; border-bottom-left-radius: 10px;
-            margin-left: 10px;
+            padding-left: 10px !important;
+            border-top-left-radius: 8px;
+            border-bottom-left-radius: 8px;
+            margin-left: 8px;
         }
 
         .marker-end {
-            padding-right: 12px !important;
-            border-top-right-radius: 10px; border-bottom-right-radius: 10px;
-            margin-right: 35px;
+            padding-right: 10px !important;
+            border-top-right-radius: 8px;
+            border-bottom-right-radius: 8px;
+            margin-right: 30px; /* The physical gap between clauses */
         }
 
-        .controls { display: flex; height: 35vh; width: 100%; background: var(--bg-color); }
+        .controls { display: flex; height: 35vh; width: 100%; background: var(--bg-color); border-top: 1px solid #1a1a1a; }
 
         .ctrl-btn {
-            flex: 1; background: var(--btn-bg); border: 1px solid var(--btn-border);
-            color: #333; font-size: 12px; cursor: pointer; outline: none;
+            flex: 1; background: var(--btn-bg); border: none;
+            color: #2a2a2a; font-size: 11px; cursor: pointer; outline: none;
             -webkit-tap-highlight-color: transparent;
-            letter-spacing: 3px;
+            letter-spacing: 4px; font-weight: bold;
         }
+
+        #word-btn { border-right: 1px solid #1a1a1a; }
 
         #reset-progress {
             position: absolute; top: 15px; right: 15px;
-            background: none; border: 1px solid #1a1a1a; color: #222;
-            padding: 8px 12px; border-radius: 6px; font-size: 11px;
+            background: rgba(0,0,0,0.5); border: 1px solid #1a1a1a; color: #333;
+            padding: 6px 10px; border-radius: 4px; font-size: 10px; z-index: 10;
         }
     </style>
 </head>
@@ -115,12 +120,12 @@
 
     <div id="setup-page">
         <div class="settings-bar">
-            <label>Reader Font Size:</label>
+            <label>Size:</label>
             <input type="range" id="font-slider" min="16" max="40" value="22">
             <span id="font-value">22px</span>
         </div>
         <textarea id="input-text" placeholder="Paste your text..."></textarea>
-        <button id="start-btn">BEGIN READING</button>
+        <button id="start-btn">START</button>
     </div>
 
     <div id="reader-page" class="hidden">
@@ -147,12 +152,11 @@
     let currentWordIdx = 0;
     let clauseCounter = 0;
 
-    // Load saved data
     window.onload = () => {
-        const savedHTML = localStorage.getItem('v8_html');
-        const savedIdx = localStorage.getItem('v8_idx');
-        const savedCount = localStorage.getItem('v8_count');
-        const savedFont = localStorage.getItem('v8_font');
+        const savedHTML = localStorage.getItem('v9_html');
+        const savedIdx = localStorage.getItem('v9_idx');
+        const savedCount = localStorage.getItem('v9_count');
+        const savedFont = localStorage.getItem('v9_font');
 
         if (savedFont) {
             fontSlider.value = savedFont;
@@ -173,18 +177,19 @@
     fontSlider.addEventListener('input', () => {
         fontValue.textContent = fontSlider.value + "px";
         displayArea.style.fontSize = fontSlider.value + "px";
-        localStorage.setItem('v8_font', fontSlider.value);
+        localStorage.setItem('v9_font', fontSlider.value);
     });
 
     function save() {
-        localStorage.setItem('v8_html', displayArea.innerHTML);
-        localStorage.setItem('v8_idx', currentWordIdx);
-        localStorage.setItem('v8_count', clauseCounter);
+        localStorage.setItem('v9_html', displayArea.innerHTML);
+        localStorage.setItem('v9_idx', currentWordIdx);
+        localStorage.setItem('v9_count', clauseCounter);
     }
 
     startBtn.addEventListener('click', () => {
         const text = inputText.value.trim();
         if (!text) return;
+        // Split by words but preserve all whitespace correctly
         const words = text.split(/(\s+)/);
         displayArea.innerHTML = words.map((w, i) => `<span class="word" id="w-${i}">${w}</span>`).join('');
         setupPage.classList.add('hidden');
