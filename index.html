@@ -3,17 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Clause Reader V14</title>
+    <title>Clause Reader V15</title>
     <style>
         :root {
             --bg-color: #080808;
             --surface-color: #111;
-            --text-dim: #252525; 
             --word-highlight: #1a1a1a;
             --clause-a: #162e45; 
             --clause-b: #0a1a2b;
             --btn-bg: #0f0f0f;
             --btn-border: #1a1a1a;
+            /* Default values */
+            --unread-color: rgb(40, 40, 40); 
         }
 
         body, html {
@@ -25,37 +26,44 @@
 
         .hidden { display: none !important; }
 
-        /* Setup Page */
+        /* Setup Page - Redesigned for better mobile fit */
         #setup-page {
             display: flex; flex-direction: column;
-            padding: 20px; height: 100vh; box-sizing: border-box;
-            justify-content: center; max-width: 800px; margin: 0 auto;
+            padding: 15px; height: 100vh; box-sizing: border-box;
+            max-width: 800px; margin: 0 auto;
         }
 
-        .top-row { display: flex; justify-content: flex-end; margin-bottom: 10px; }
-        #clear-btn { background: none; border: 1px solid #222; color: #444; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+        .top-row { display: flex; justify-content: flex-end; padding-bottom: 10px; }
+        
+        #clear-btn { 
+            background: #1a1a1a; border: 1px solid #333; color: #777; 
+            padding: 8px 16px; border-radius: 6px; cursor: pointer; 
+            font-size: 10px; text-transform: uppercase;
+        }
 
         .settings-bar {
             background: var(--surface-color);
-            padding: 15px; border-radius: 8px; margin-bottom: 15px;
+            padding: 12px; border-radius: 8px; margin-bottom: 10px;
             display: grid; grid-template-columns: auto 1fr auto;
-            gap: 12px; align-items: center; color: #555; font-size: 11px;
-            text-transform: uppercase; letter-spacing: 1px;
+            gap: 10px; align-items: center; color: #666; font-size: 11px;
         }
 
         input[type=range] { cursor: pointer; accent-color: #555; width: 100%; }
 
         textarea {
-            flex: 1; background: var(--surface-color); color: #888;
+            flex: 1; /* Takes up all available space */
+            background: var(--surface-color); color: #888;
             border: 1px solid var(--btn-border); border-radius: 8px;
-            padding: 20px; font-size: 18px; margin-bottom: 20px;
+            padding: 15px; font-size: 18px; margin-bottom: 15px;
             outline: none; resize: none;
         }
 
         #start-btn {
-            padding: 20px; background: var(--btn-bg); color: #aaa;
-            border: 1px solid var(--btn-border); border-radius: 8px;
-            font-size: 16px; cursor: pointer; letter-spacing: 2px;
+            height: 60px; /* Fixed height to prevent cutting off */
+            background: #111; color: #999;
+            border: 1px solid #222; border-radius: 8px;
+            font-size: 15px; cursor: pointer; letter-spacing: 3px;
+            font-weight: bold; margin-bottom: 10px;
         }
 
         /* Reader Page */
@@ -68,16 +76,19 @@
 
         .paragraph { margin-bottom: 2em; display: block; }
 
+        /* The Unread Text - Now Dynamic */
         .word {
             display: inline; padding: 4px 0;
-            color: var(--text-dim);
+            color: var(--unread-color);
             white-space: pre-wrap; font-size: inherit;
             box-decoration-break: clone; -webkit-box-decoration-break: clone;
         }
 
-        .word.active { background-color: var(--word-highlight); color: #555; }
+        .word.active { background-color: var(--word-highlight); color: #666; }
         
-        /* Clause Colors */
+        /* Highlighted/Locked text stays bright for contrast */
+        .word.clause-locked { color: #ffffff !important; }
+
         .clause-v-a { background-color: var(--clause-a) !important; }
         .clause-v-b { background-color: var(--clause-b) !important; }
 
@@ -103,8 +114,8 @@
 
         #back-btn {
             position: absolute; top: 15px; left: 15px;
-            background: rgba(0,0,0,0.8); border: 1px solid #222; color: #666;
-            padding: 10px 18px; border-radius: 6px; font-size: 12px; z-index: 100;
+            background: rgba(0,0,0,0.8); border: 1px solid #222; color: #555;
+            padding: 10px 18px; border-radius: 6px; font-size: 11px; z-index: 100;
         }
     </style>
 </head>
@@ -112,23 +123,26 @@
 
     <div id="setup-page">
         <div class="top-row">
-            <button id="clear-btn">CLEAR ALL</button>
+            <button id="clear-btn" onclick="clearAll()">CLEAR TEXT</button>
         </div>
+        
         <div class="settings-bar">
-            <label>Size</label>
+            <label>SIZE</label>
             <input type="range" id="font-slider" min="16" max="44" value="22">
             <span id="font-value">22px</span>
 
-            <label>Bright</label>
-            <input type="range" id="bright-slider" min="20" max="100" value="100">
-            <span id="bright-value">100%</span>
+            <label>BRIGHT</label>
+            <input type="range" id="bright-slider" min="10" max="80" value="30">
+            <span id="bright-value">30%</span>
         </div>
-        <textarea id="input-text" placeholder="Paste your text..."></textarea>
-        <button id="start-btn">OPEN READER</button>
+
+        <textarea id="input-text" placeholder="Paste your text here..."></textarea>
+        
+        <button id="start-btn" onclick="openReader()">OPEN READER</button>
     </div>
 
     <div id="reader-page" class="hidden">
-        <button id="back-btn">BACK</button>
+        <button id="back-btn" onclick="goBack()">BACK</button>
         <div id="display-area"></div>
         <div class="controls">
             <button id="word-btn" class="ctrl-btn">WORD</button>
@@ -137,8 +151,7 @@
     </div>
 
 <script>
-    // Constants & State
-    const PREFIX = "chunk_v14_";
+    const PREFIX = "chunk_v15_";
     const setupPage = document.getElementById('setup-page');
     const readerPage = document.getElementById('reader-page');
     const inputText = document.getElementById('input-text');
@@ -147,24 +160,23 @@
     let currentWordIdx = 0;
     let clauseCounter = 0;
 
-    // Load function
     window.onload = () => {
         const savedText = localStorage.getItem(PREFIX + 'text');
         const savedHTML = localStorage.getItem(PREFIX + 'html');
         const savedIdx = localStorage.getItem(PREFIX + 'idx');
         const savedCount = localStorage.getItem(PREFIX + 'count');
         const savedFont = localStorage.getItem(PREFIX + 'font') || "22";
-        const savedBright = localStorage.getItem(PREFIX + 'bright') || "100";
+        const savedBright = localStorage.getItem(PREFIX + 'bright') || "30";
 
         if (savedText) inputText.value = savedText;
         
-        // Setup font/brightness sliders
+        // Apply saved settings
         document.getElementById('font-slider').value = savedFont;
         document.getElementById('font-value').textContent = savedFont + "px";
         displayArea.style.fontSize = savedFont + "px";
 
         document.getElementById('bright-slider').value = savedBright;
-        applyBrightness(savedBright);
+        applyUnreadBrightness(savedBright);
 
         if (savedHTML) {
             displayArea.innerHTML = savedHTML;
@@ -176,30 +188,20 @@
         }
     };
 
-    function applyBrightness(val) {
+    function applyUnreadBrightness(val) {
         document.getElementById('bright-value').textContent = val + "%";
+        // Calculate a color from very dim to relatively bright for the background text
         const c = Math.floor((val / 100) * 255);
-        const colorStr = `rgb(${c}, ${c}, ${c})`;
-        
-        // Inject a dynamic style tag to handle the locked word color
-        let styleTag = document.getElementById('dynamic-brightness');
-        if (!styleTag) {
-            styleTag = document.createElement('style');
-            styleTag.id = 'dynamic-brightness';
-            document.head.appendChild(styleTag);
-        }
-        styleTag.innerHTML = `.word.clause-locked { color: ${colorStr} !important; }`;
+        document.documentElement.style.setProperty('--unread-color', `rgb(${c}, ${c}, ${c})`);
+        // Also dim the input text to match the preview
+        inputText.style.color = `rgb(${c+40}, ${c+40}, ${c+40})`; 
         localStorage.setItem(PREFIX + 'bright', val);
     }
 
-    function save() {
-        localStorage.setItem(PREFIX + 'text', inputText.value);
-        localStorage.setItem(PREFIX + 'html', displayArea.innerHTML);
-        localStorage.setItem(PREFIX + 'idx', currentWordIdx);
-        localStorage.setItem(PREFIX + 'count', clauseCounter);
-    }
+    document.getElementById('bright-slider').oninput = function() {
+        applyUnreadBrightness(this.value);
+    };
 
-    // Sliders
     document.getElementById('font-slider').oninput = function() {
         const val = this.value;
         document.getElementById('font-value').textContent = val + "px";
@@ -207,16 +209,10 @@
         localStorage.setItem(PREFIX + 'font', val);
     };
 
-    document.getElementById('bright-slider').oninput = function() {
-        applyBrightness(this.value);
-    };
-
-    // Buttons
-    document.getElementById('start-btn').onclick = function() {
+    function openReader() {
         const text = inputText.value.trim();
         if (!text) return;
 
-        // If it's a fresh text, build it
         if (text !== localStorage.getItem(PREFIX + 'text') || !displayArea.innerHTML) {
             const paragraphs = text.split(/\n+/);
             let globalIdx = 0;
@@ -232,19 +228,26 @@
         readerPage.classList.remove('hidden');
         save();
         scrollToActive();
-    };
+    }
 
-    document.getElementById('back-btn').onclick = function() {
+    function goBack() {
         readerPage.classList.add('hidden');
         setupPage.classList.remove('hidden');
-    };
+    }
 
-    document.getElementById('clear-btn').onclick = function() {
-        if(confirm("Clear progress?")) {
+    function clearAll() {
+        if(confirm("Clear all text and progress?")) {
             localStorage.clear();
             location.reload();
         }
-    };
+    }
+
+    function save() {
+        localStorage.setItem(PREFIX + 'text', inputText.value);
+        localStorage.setItem(PREFIX + 'html', displayArea.innerHTML);
+        localStorage.setItem(PREFIX + 'idx', currentWordIdx);
+        localStorage.setItem(PREFIX + 'count', clauseCounter);
+    }
 
     function nextWord() {
         const el = document.getElementById(`w-${currentWordIdx}`);
@@ -283,7 +286,7 @@
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
-    // Direct Click Bindings
+    // Direct Bindings for Mobile
     document.getElementById('word-btn').onclick = (e) => { e.preventDefault(); nextWord(); };
     document.getElementById('clause-btn').onclick = (e) => { e.preventDefault(); endClause(); };
 
