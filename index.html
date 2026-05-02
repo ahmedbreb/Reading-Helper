@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Clause Reader V15</title>
+    <title>Clause Reader V16</title>
     <style>
         :root {
             --bg-color: #080808;
@@ -13,7 +13,6 @@
             --clause-b: #0a1a2b;
             --btn-bg: #0f0f0f;
             --btn-border: #1a1a1a;
-            /* Default values */
             --unread-color: rgb(40, 40, 40); 
         }
 
@@ -26,48 +25,52 @@
 
         .hidden { display: none !important; }
 
-        /* Setup Page - Redesigned for better mobile fit */
+        /* Setup Page - Fixed for S22 Ultra aspect ratio */
         #setup-page {
             display: flex; flex-direction: column;
-            padding: 15px; height: 100vh; box-sizing: border-box;
+            padding: 15px; 
+            height: 100dvh; /* Dynamic height accounts for mobile browser bars */
+            box-sizing: border-box;
             max-width: 800px; margin: 0 auto;
         }
 
-        .top-row { display: flex; justify-content: flex-end; padding-bottom: 10px; }
+        .top-row { display: flex; justify-content: flex-end; padding-bottom: 8px; }
         
         #clear-btn { 
             background: #1a1a1a; border: 1px solid #333; color: #777; 
-            padding: 8px 16px; border-radius: 6px; cursor: pointer; 
+            padding: 6px 12px; border-radius: 6px; cursor: pointer; 
             font-size: 10px; text-transform: uppercase;
         }
 
         .settings-bar {
             background: var(--surface-color);
-            padding: 12px; border-radius: 8px; margin-bottom: 10px;
+            padding: 10px; border-radius: 8px; margin-bottom: 10px;
             display: grid; grid-template-columns: auto 1fr auto;
-            gap: 10px; align-items: center; color: #666; font-size: 11px;
+            gap: 8px; align-items: center; color: #666; font-size: 11px;
         }
 
         input[type=range] { cursor: pointer; accent-color: #555; width: 100%; }
 
         textarea {
-            flex: 1; /* Takes up all available space */
+            flex: 1; 
             background: var(--surface-color); color: #888;
             border: 1px solid var(--btn-border); border-radius: 8px;
             padding: 15px; font-size: 18px; margin-bottom: 15px;
             outline: none; resize: none;
+            min-height: 100px;
         }
 
         #start-btn {
-            height: 60px; /* Fixed height to prevent cutting off */
+            height: 55px; /* Explicit height */
+            flex-shrink: 0; /* Prevents button from squishing */
             background: #111; color: #999;
             border: 1px solid #222; border-radius: 8px;
-            font-size: 15px; cursor: pointer; letter-spacing: 3px;
-            font-weight: bold; margin-bottom: 10px;
+            font-size: 14px; cursor: pointer; letter-spacing: 3px;
+            font-weight: bold; margin-bottom: 5px;
         }
 
         /* Reader Page */
-        #reader-page { display: flex; flex-direction: column; height: 100vh; position: relative; }
+        #reader-page { display: flex; flex-direction: column; height: 100dvh; position: relative; }
 
         #display-area {
             flex: 1; padding: 60px 25px; overflow-y: auto;
@@ -76,7 +79,6 @@
 
         .paragraph { margin-bottom: 2em; display: block; }
 
-        /* The Unread Text - Now Dynamic */
         .word {
             display: inline; padding: 4px 0;
             color: var(--unread-color);
@@ -85,10 +87,7 @@
         }
 
         .word.active { background-color: var(--word-highlight); color: #666; }
-        
-        /* Highlighted/Locked text stays bright for contrast */
         .word.clause-locked { color: #ffffff !important; }
-
         .clause-v-a { background-color: var(--clause-a) !important; }
         .clause-v-b { background-color: var(--clause-b) !important; }
 
@@ -132,11 +131,11 @@
             <span id="font-value">22px</span>
 
             <label>BRIGHT</label>
-            <input type="range" id="bright-slider" min="10" max="80" value="30">
+            <input type="range" id="bright-slider" min="10" max="85" value="30">
             <span id="bright-value">30%</span>
         </div>
 
-        <textarea id="input-text" placeholder="Paste your text here..."></textarea>
+        <textarea id="input-text" placeholder="Paste text..."></textarea>
         
         <button id="start-btn" onclick="openReader()">OPEN READER</button>
     </div>
@@ -151,7 +150,7 @@
     </div>
 
 <script>
-    const PREFIX = "chunk_v15_";
+    const PREFIX = "chunk_v16_";
     const setupPage = document.getElementById('setup-page');
     const readerPage = document.getElementById('reader-page');
     const inputText = document.getElementById('input-text');
@@ -170,7 +169,6 @@
 
         if (savedText) inputText.value = savedText;
         
-        // Apply saved settings
         document.getElementById('font-slider').value = savedFont;
         document.getElementById('font-value').textContent = savedFont + "px";
         displayArea.style.fontSize = savedFont + "px";
@@ -190,11 +188,9 @@
 
     function applyUnreadBrightness(val) {
         document.getElementById('bright-value').textContent = val + "%";
-        // Calculate a color from very dim to relatively bright for the background text
         const c = Math.floor((val / 100) * 255);
         document.documentElement.style.setProperty('--unread-color', `rgb(${c}, ${c}, ${c})`);
-        // Also dim the input text to match the preview
-        inputText.style.color = `rgb(${c+40}, ${c+40}, ${c+40})`; 
+        inputText.style.color = `rgb(${c+30}, ${c+30}, ${c+30})`; 
         localStorage.setItem(PREFIX + 'bright', val);
     }
 
@@ -213,7 +209,10 @@
         const text = inputText.value.trim();
         if (!text) return;
 
-        if (text !== localStorage.getItem(PREFIX + 'text') || !displayArea.innerHTML) {
+        // CRITICAL FIX: Only rebuild if the text has actually changed
+        const lastText = localStorage.getItem(PREFIX + 'text');
+        
+        if (text !== lastText || !displayArea.innerHTML) {
             const paragraphs = text.split(/\n+/);
             let globalIdx = 0;
             displayArea.innerHTML = paragraphs.map(p => {
@@ -231,6 +230,7 @@
     }
 
     function goBack() {
+        // Just hide the reader, don't clear progress
         readerPage.classList.add('hidden');
         setupPage.classList.remove('hidden');
     }
@@ -286,7 +286,6 @@
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
-    // Direct Bindings for Mobile
     document.getElementById('word-btn').onclick = (e) => { e.preventDefault(); nextWord(); };
     document.getElementById('clause-btn').onclick = (e) => { e.preventDefault(); endClause(); };
 
