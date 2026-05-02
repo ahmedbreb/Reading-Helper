@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Clause Reader V17</title>
+    <title>Clause Reader V18</title>
     <style>
         :root {
             --bg-color: #080808;
@@ -133,7 +133,7 @@
     </div>
 
 <script>
-    const PREFIX = "chunk_v17_";
+    const PREFIX = "chunk_v18_";
     const setupPage = document.getElementById('setup-page');
     const readerPage = document.getElementById('reader-page');
     const inputText = document.getElementById('input-text');
@@ -189,10 +189,11 @@
         const text = inputText.value.trim();
         if (!text) return;
 
-        const lastText = localStorage.getItem(PREFIX + 'text');
+        // CHECK: If the display area already has words and the text hasn't changed, 
+        // DO NOT REBUILD. Just show the page.
+        const storedText = localStorage.getItem(PREFIX + 'text');
         
-        // Only reset progress if the text is ACTUALLY different
-        if (text !== lastText) {
+        if (text !== storedText || displayArea.innerHTML === "") {
             const paragraphs = text.split(/\n+/);
             let globalIdx = 0;
             displayArea.innerHTML = paragraphs.map(p => {
@@ -201,12 +202,6 @@
             }).join('');
             currentWordIdx = 0;
             clauseCounter = 0;
-        } else {
-            // Text is the same! Restore the saved index so we don't start at 0
-            const savedIdx = localStorage.getItem(PREFIX + 'idx');
-            const savedCount = localStorage.getItem(PREFIX + 'count');
-            currentWordIdx = parseInt(savedIdx) || 0;
-            clauseCounter = parseInt(savedCount) || 0;
         }
 
         setupPage.classList.add('hidden');
@@ -216,7 +211,7 @@
     }
 
     function goBack() {
-        save(); // Save exactly where we are before switching
+        save(); 
         readerPage.classList.add('hidden');
         setupPage.classList.remove('hidden');
     }
