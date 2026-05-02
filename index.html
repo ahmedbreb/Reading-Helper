@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Clause Reader V21</title>
+    <title>Clause Reader V22</title>
     <style>
         :root {
             --bg-color: #080808;
@@ -12,7 +12,6 @@
             --btn-border: #1a1a1a;
             --clause-a: #162e45; 
             --clause-b: #0a1a2b;
-            /* Dynamic Color Variables */
             --unread-color: rgb(40, 40, 40); 
             --active-text-color: rgb(150, 150, 150);
             --clause-text-color: rgb(255, 255, 255);
@@ -74,7 +73,9 @@
 
         #display-area {
             flex: 1; padding: 60px 25px; overflow-y: auto;
-            line-height: 2.4; padding-bottom: 60vh;
+            line-height: 2.4; 
+            /* Extra padding to clear the taller buttons */
+            padding-bottom: 70vh; 
         }
 
         .paragraph { margin-bottom: 2em; display: block; }
@@ -85,7 +86,6 @@
             white-space: pre-wrap; font-size: inherit;
         }
 
-        /* TARGET: The "Word" highlight before "Clause" is pressed */
         .word.active { 
             background-color: #1a1a1a; 
             color: var(--active-text-color) !important; 
@@ -99,11 +99,18 @@
         .marker-start { padding-left: 10px !important; border-radius: 8px 0 0 8px; margin-left: 5px; }
         .marker-end { padding-right: 10px !important; border-radius: 0 8px 8px 0; margin-right: 35px; }
 
-        .controls { display: flex; height: 35vh; width: 100%; background: var(--bg-color); border-top: 1px solid #1a1a1a; }
+        /* UPDATED: 40% taller controls */
+        .controls { 
+            display: flex; 
+            height: 49vh; 
+            width: 100%; 
+            background: var(--bg-color); 
+            border-top: 1px solid #1a1a1a; 
+        }
 
         .ctrl-btn {
             flex: 1; background: var(--btn-bg); border: none;
-            color: #333; font-size: 12px; cursor: pointer; outline: none;
+            color: #333; font-size: 14px; cursor: pointer; outline: none;
             -webkit-tap-highlight-color: transparent; letter-spacing: 5px; font-weight: bold;
         }
 
@@ -130,19 +137,16 @@
                 <input type="range" id="font-slider" min="16" max="44" value="22">
                 <span id="font-value">22px</span>
             </div>
-
             <div class="setting-item">
                 <label>UNREAD BR.</label>
                 <input type="range" id="bright-slider" min="5" max="90" value="30">
                 <span id="bright-value">30%</span>
             </div>
-
             <div class="setting-item">
                 <label>ACTIVE BR.</label>
                 <input type="range" id="active-bright-slider" min="10" max="100" value="60">
                 <span id="active-bright-value">60%</span>
             </div>
-
             <div class="setting-item">
                 <label>CLAUSE BR.</label>
                 <input type="range" id="clause-bright-slider" min="10" max="100" value="100">
@@ -164,7 +168,7 @@
     </div>
 
 <script>
-    const PREFIX = "chunk_v21_";
+    const PREFIX = "chunk_v22_";
     const setupPage = document.getElementById('setup-page');
     const readerPage = document.getElementById('reader-page');
     const inputText = document.getElementById('input-text');
@@ -189,14 +193,14 @@
         document.getElementById('font-value').textContent = savedFont + "px";
         displayArea.style.fontSize = savedFont + "px";
 
-        document.getElementById('bright-slider').value = savedBright;
         applyUnreadBrightness(savedBright);
+        document.getElementById('bright-slider').value = savedBright;
 
-        document.getElementById('active-bright-slider').value = savedActiveBright;
         applyActiveBrightness(savedActiveBright);
+        document.getElementById('active-bright-slider').value = savedActiveBright;
 
-        document.getElementById('clause-bright-slider').value = savedClauseBright;
         applyClauseBrightness(savedClauseBright);
+        document.getElementById('clause-bright-slider').value = savedClauseBright;
 
         if (savedHTML && savedHTML.trim() !== "") {
             displayArea.innerHTML = savedHTML;
