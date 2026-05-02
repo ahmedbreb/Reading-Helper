@@ -3,17 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Clause Reader V19</title>
+    <title>Clause Reader V21</title>
     <style>
         :root {
             --bg-color: #080808;
             --surface-color: #111;
-            --word-highlight: #1a1a1a;
-            --clause-a: #162e45; 
-            --clause-b: #0a1a2b;
             --btn-bg: #0f0f0f;
             --btn-border: #1a1a1a;
+            --clause-a: #162e45; 
+            --clause-b: #0a1a2b;
+            /* Dynamic Color Variables */
             --unread-color: rgb(40, 40, 40); 
+            --active-text-color: rgb(150, 150, 150);
+            --clause-text-color: rgb(255, 255, 255);
         }
 
         body, html {
@@ -39,14 +41,19 @@
             font-size: 10px; text-transform: uppercase;
         }
 
-        .settings-bar {
+        .settings-container {
             background: var(--surface-color);
-            padding: 10px; border-radius: 8px; margin-bottom: 10px;
-            display: grid; grid-template-columns: auto 1fr auto;
-            gap: 8px; align-items: center; color: #666; font-size: 11px;
+            padding: 12px; border-radius: 8px; margin-bottom: 10px;
+            display: flex; flex-direction: column; gap: 10px;
         }
 
-        input[type=range] { cursor: pointer; accent-color: #555; width: 100%; }
+        .setting-item {
+            display: grid; grid-template-columns: 80px 1fr 45px;
+            gap: 8px; align-items: center; color: #666; font-size: 10px;
+            letter-spacing: 1px;
+        }
+
+        input[type=range] { cursor: pointer; accent-color: #555; width: 100%; margin: 0; }
 
         textarea {
             flex: 1; background: var(--surface-color); color: #888;
@@ -57,7 +64,7 @@
 
         #start-btn {
             height: 60px; flex-shrink: 0;
-            background: #111; color: #00ffaa; /* Highlighted to show it's a Resume/Open */
+            background: #111; color: #00ffaa;
             border: 1px solid #222; border-radius: 8px;
             font-size: 14px; cursor: pointer; letter-spacing: 3px;
             font-weight: bold; margin-bottom: 10px;
@@ -78,8 +85,14 @@
             white-space: pre-wrap; font-size: inherit;
         }
 
-        .word.active { background-color: var(--word-highlight); color: #666; }
-        .word.clause-locked { color: #ffffff !important; }
+        /* TARGET: The "Word" highlight before "Clause" is pressed */
+        .word.active { 
+            background-color: #1a1a1a; 
+            color: var(--active-text-color) !important; 
+        }
+        
+        .word.clause-locked { color: var(--clause-text-color) !important; }
+        
         .clause-v-a { background-color: var(--clause-a) !important; }
         .clause-v-b { background-color: var(--clause-b) !important; }
 
@@ -90,7 +103,7 @@
 
         .ctrl-btn {
             flex: 1; background: var(--btn-bg); border: none;
-            color: #222; font-size: 12px; cursor: pointer; outline: none;
+            color: #333; font-size: 12px; cursor: pointer; outline: none;
             -webkit-tap-highlight-color: transparent; letter-spacing: 5px; font-weight: bold;
         }
 
@@ -107,19 +120,37 @@
 
     <div id="setup-page">
         <div class="top-row">
-            <button class="top-btn" onclick="createNewSession()">NEW TEXT / RESET</button>
+            <button class="top-btn" onclick="createNewSession()">NEW TEXT</button>
             <button id="clear-btn" class="top-btn" onclick="fullClear()">CLEAR ALL</button>
         </div>
-        <div class="settings-bar">
-            <label>SIZE</label>
-            <input type="range" id="font-slider" min="16" max="44" value="22">
-            <span id="font-value">22px</span>
 
-            <label>BRIGHT</label>
-            <input type="range" id="bright-slider" min="10" max="85" value="30">
-            <span id="bright-value">30%</span>
+        <div class="settings-container">
+            <div class="setting-item">
+                <label>SIZE</label>
+                <input type="range" id="font-slider" min="16" max="44" value="22">
+                <span id="font-value">22px</span>
+            </div>
+
+            <div class="setting-item">
+                <label>UNREAD BR.</label>
+                <input type="range" id="bright-slider" min="5" max="90" value="30">
+                <span id="bright-value">30%</span>
+            </div>
+
+            <div class="setting-item">
+                <label>ACTIVE BR.</label>
+                <input type="range" id="active-bright-slider" min="10" max="100" value="60">
+                <span id="active-bright-value">60%</span>
+            </div>
+
+            <div class="setting-item">
+                <label>CLAUSE BR.</label>
+                <input type="range" id="clause-bright-slider" min="10" max="100" value="100">
+                <span id="clause-bright-value">100%</span>
+            </div>
         </div>
-        <textarea id="input-text" placeholder="Paste text here..."></textarea>
+
+        <textarea id="input-text" placeholder="Paste text..."></textarea>
         <button id="start-btn" onclick="resumeReader()">RESUME / OPEN READER</button>
     </div>
 
@@ -133,7 +164,7 @@
     </div>
 
 <script>
-    const PREFIX = "chunk_v19_";
+    const PREFIX = "chunk_v21_";
     const setupPage = document.getElementById('setup-page');
     const readerPage = document.getElementById('reader-page');
     const inputText = document.getElementById('input-text');
@@ -148,6 +179,8 @@
         const savedCount = localStorage.getItem(PREFIX + 'count');
         const savedFont = localStorage.getItem(PREFIX + 'font') || "22";
         const savedBright = localStorage.getItem(PREFIX + 'bright') || "30";
+        const savedActiveBright = localStorage.getItem(PREFIX + 'activeBright') || "60";
+        const savedClauseBright = localStorage.getItem(PREFIX + 'clauseBright') || "100";
         const savedRawText = localStorage.getItem(PREFIX + 'text');
 
         if (savedRawText) inputText.value = savedRawText;
@@ -159,11 +192,16 @@
         document.getElementById('bright-slider').value = savedBright;
         applyUnreadBrightness(savedBright);
 
+        document.getElementById('active-bright-slider').value = savedActiveBright;
+        applyActiveBrightness(savedActiveBright);
+
+        document.getElementById('clause-bright-slider').value = savedClauseBright;
+        applyClauseBrightness(savedClauseBright);
+
         if (savedHTML && savedHTML.trim() !== "") {
             displayArea.innerHTML = savedHTML;
             currentWordIdx = parseInt(savedIdx) || 0;
             clauseCounter = parseInt(savedCount) || 0;
-            // Stay on setup page but ready to resume
         }
     };
 
@@ -174,7 +212,23 @@
         localStorage.setItem(PREFIX + 'bright', val);
     }
 
+    function applyActiveBrightness(val) {
+        document.getElementById('active-bright-value').textContent = val + "%";
+        const c = Math.floor((val / 100) * 255);
+        document.documentElement.style.setProperty('--active-text-color', `rgb(${c}, ${c}, ${c})`);
+        localStorage.setItem(PREFIX + 'activeBright', val);
+    }
+
+    function applyClauseBrightness(val) {
+        document.getElementById('clause-bright-value').textContent = val + "%";
+        const c = Math.floor((val / 100) * 255);
+        document.documentElement.style.setProperty('--clause-text-color', `rgb(${c}, ${c}, ${c})`);
+        localStorage.setItem(PREFIX + 'clauseBright', val);
+    }
+
     document.getElementById('bright-slider').oninput = function() { applyUnreadBrightness(this.value); };
+    document.getElementById('active-bright-slider').oninput = function() { applyActiveBrightness(this.value); };
+    document.getElementById('clause-bright-slider').oninput = function() { applyClauseBrightness(this.value); };
     document.getElementById('font-slider').oninput = function() {
         const val = this.value;
         document.getElementById('font-value').textContent = val + "px";
@@ -184,46 +238,29 @@
 
     function createNewSession() {
         const text = inputText.value.trim();
-        if (!text) { alert("Paste some text first!"); return; }
-        
-        if (displayArea.innerHTML !== "" && !confirm("This will wipe your current progress. Continue?")) return;
-
+        if (!text) return;
+        if (displayArea.innerHTML !== "" && !confirm("Wipe current progress?")) return;
         const paragraphs = text.split(/\n+/);
         let globalIdx = 0;
         displayArea.innerHTML = paragraphs.map(p => {
             const words = p.split(/(\s+)/);
             return `<div class="paragraph">${words.map(w => `<span class="word" id="w-${globalIdx++}">${w}</span>`).join('')}</div>`;
         }).join('');
-        
         currentWordIdx = 0;
         clauseCounter = 0;
         save();
-        alert("New session ready! Click Resume/Open to start.");
     }
 
     function resumeReader() {
-        if (displayArea.innerHTML === "") {
-            createNewSession();
-            if (displayArea.innerHTML === "") return;
-        }
+        if (displayArea.innerHTML === "") { createNewSession(); if (displayArea.innerHTML === "") return; }
         setupPage.classList.add('hidden');
         readerPage.classList.remove('hidden');
         save();
         scrollToActive();
     }
 
-    function goBack() {
-        save(); 
-        readerPage.classList.add('hidden');
-        setupPage.classList.remove('hidden');
-    }
-
-    function fullClear() {
-        if(confirm("Delete everything?")) {
-            localStorage.clear();
-            location.reload();
-        }
-    }
+    function goBack() { save(); readerPage.classList.add('hidden'); setupPage.classList.remove('hidden'); }
+    function fullClear() { if(confirm("Delete everything?")) { localStorage.clear(); location.reload(); } }
 
     function save() {
         localStorage.setItem(PREFIX + 'text', inputText.value);
@@ -236,11 +273,7 @@
         const el = document.getElementById(`w-${currentWordIdx}`);
         if (el) {
             el.classList.add('active');
-            if (el.textContent.trim() === "") {
-                currentWordIdx++;
-                nextWord(); 
-                return;
-            }
+            if (el.textContent.trim() === "") { currentWordIdx++; nextWord(); return; }
             scrollToActive();
             currentWordIdx++;
             save();
