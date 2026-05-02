@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Clause Reader V23</title>
+    <title>Clause Reader V24</title>
     <style>
         :root {
             --bg-color: #080808;
@@ -49,7 +49,6 @@
         .setting-item {
             display: grid; grid-template-columns: 85px 1fr 45px;
             gap: 8px; align-items: center; color: #666; font-size: 10px;
-            letter-spacing: 1px;
         }
 
         input[type=range] { cursor: pointer; accent-color: #555; width: 100%; margin: 0; }
@@ -69,12 +68,20 @@
             font-weight: bold; margin-bottom: 10px;
         }
 
-        #reader-page { display: flex; flex-direction: column; height: 100dvh; position: relative; }
+        /* THE GRID LOCK FIX */
+        #reader-page { 
+            display: grid; 
+            grid-template-rows: 60dvh 40dvh; /* Forces 60% top, 40% bottom */
+            height: 100dvh; 
+            width: 100vw;
+            position: relative; 
+        }
 
         #display-area {
-            flex: 1; padding: 60px 25px; overflow-y: auto;
+            grid-row: 1;
+            padding: 60px 25px 20px 25px; 
+            overflow-y: auto;
             line-height: 2.4; 
-            padding-bottom: 70vh; 
         }
 
         .paragraph { margin-bottom: 2em; display: block; }
@@ -85,35 +92,27 @@
             white-space: pre-wrap; font-size: inherit;
         }
 
-        .word.active { 
-            background-color: #1a1a1a; 
-            color: var(--active-text-color) !important; 
-        }
-        
+        .word.active { background-color: #1a1a1a; color: var(--active-text-color) !important; }
         .word.clause-locked { color: var(--clause-text-color) !important; }
-        
         .clause-v-a { background-color: var(--clause-a) !important; }
         .clause-v-b { background-color: var(--clause-b) !important; }
 
         .marker-start { padding-left: 10px !important; border-radius: 8px 0 0 8px; margin-left: 5px; }
         .marker-end { padding-right: 10px !important; border-radius: 0 8px 8px 0; margin-right: 35px; }
 
-        /* INCREASED HEIGHT & FORCED VISIBILITY */
+        /* BUTTONS: Forced to fill the 40% container */
         .controls { 
+            grid-row: 2;
             display: flex; 
-            height: 60dvh; /* 60% of the dynamic screen height */
-            min-height: 450px; /* Safety floor for very tall screens */
-            width: 100%; 
             background: var(--bg-color); 
-            border-top: 1px solid #1a1a1a;
-            flex-shrink: 0; 
+            border-top: 2px solid #222;
         }
 
         .ctrl-btn {
-            flex: 1; background: var(--btn-bg); border: none;
-            color: #333; font-size: 18px; cursor: pointer; outline: none;
+            flex: 1; height: 100%; background: var(--btn-bg); border: none;
+            color: #333; font-size: 20px; cursor: pointer; outline: none;
             -webkit-tap-highlight-color: transparent; 
-            letter-spacing: 6px; font-weight: bold;
+            letter-spacing: 8px; font-weight: bold;
             display: flex; align-items: center; justify-content: center;
         }
 
@@ -171,7 +170,7 @@
     </div>
 
 <script>
-    const PREFIX = "chunk_v23_";
+    const PREFIX = "chunk_v24_";
     const setupPage = document.getElementById('setup-page');
     const readerPage = document.getElementById('reader-page');
     const inputText = document.getElementById('input-text');
@@ -198,10 +197,8 @@
 
         applyUnreadBrightness(savedBright);
         document.getElementById('bright-slider').value = savedBright;
-
         applyActiveBrightness(savedActiveBright);
         document.getElementById('active-bright-slider').value = savedActiveBright;
-
         applyClauseBrightness(savedClauseBright);
         document.getElementById('clause-bright-slider').value = savedClauseBright;
 
@@ -213,23 +210,23 @@
     };
 
     function applyUnreadBrightness(val) {
-        document.getElementById('bright-value').textContent = val + "%";
         const c = Math.floor((val / 100) * 255);
         document.documentElement.style.setProperty('--unread-color', `rgb(${c}, ${c}, ${c})`);
+        document.getElementById('bright-value').textContent = val + "%";
         localStorage.setItem(PREFIX + 'bright', val);
     }
 
     function applyActiveBrightness(val) {
-        document.getElementById('active-bright-value').textContent = val + "%";
         const c = Math.floor((val / 100) * 255);
         document.documentElement.style.setProperty('--active-text-color', `rgb(${c}, ${c}, ${c})`);
+        document.getElementById('active-bright-value').textContent = val + "%";
         localStorage.setItem(PREFIX + 'activeBright', val);
     }
 
     function applyClauseBrightness(val) {
-        document.getElementById('clause-bright-value').textContent = val + "%";
         const c = Math.floor((val / 100) * 255);
         document.documentElement.style.setProperty('--clause-text-color', `rgb(${c}, ${c}, ${c})`);
+        document.getElementById('clause-bright-value').textContent = val + "%";
         localStorage.setItem(PREFIX + 'clauseBright', val);
     }
 
@@ -246,7 +243,7 @@
     function createNewSession() {
         const text = inputText.value.trim();
         if (!text) return;
-        if (displayArea.innerHTML !== "" && !confirm("Wipe progress?")) return;
+        if (displayArea.innerHTML !== "" && !confirm("New session?")) return;
         const paragraphs = text.split(/\n+/);
         let globalIdx = 0;
         displayArea.innerHTML = paragraphs.map(p => {
@@ -267,7 +264,7 @@
     }
 
     function goBack() { save(); readerPage.classList.add('hidden'); setupPage.classList.remove('hidden'); }
-    function fullClear() { if(confirm("Delete everything?")) { localStorage.clear(); location.reload(); } }
+    function fullClear() { if(confirm("Clear?")) { localStorage.clear(); location.reload(); } }
 
     function save() {
         localStorage.setItem(PREFIX + 'text', inputText.value);
