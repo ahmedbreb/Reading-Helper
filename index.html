@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Clause Reader V13</title>
+    <title>Clause Reader V14</title>
     <style>
         :root {
             --bg-color: #080808;
@@ -14,15 +14,13 @@
             --clause-b: #0a1a2b;
             --btn-bg: #0f0f0f;
             --btn-border: #1a1a1a;
-            /* Default brightness */
-            --reader-bright: rgb(255, 255, 255); 
         }
 
         body, html {
             margin: 0; padding: 0; height: 100%;
             background-color: var(--bg-color);
             color: #fff; font-family: sans-serif;
-            overflow: hidden; touch-action: manipulation;
+            overflow: hidden;
         }
 
         .hidden { display: none !important; }
@@ -41,10 +39,11 @@
             background: var(--surface-color);
             padding: 15px; border-radius: 8px; margin-bottom: 15px;
             display: grid; grid-template-columns: auto 1fr auto;
-            gap: 12px; align-items: center; color: #555; font-size: 12px;
+            gap: 12px; align-items: center; color: #555; font-size: 11px;
+            text-transform: uppercase; letter-spacing: 1px;
         }
 
-        input[type=range] { cursor: pointer; accent-color: #444; width: 100%; }
+        input[type=range] { cursor: pointer; accent-color: #555; width: 100%; }
 
         textarea {
             flex: 1; background: var(--surface-color); color: #888;
@@ -54,7 +53,7 @@
         }
 
         #start-btn {
-            padding: 20px; background: var(--btn-bg); color: #888;
+            padding: 20px; background: var(--btn-bg); color: #aaa;
             border: 1px solid var(--btn-border); border-radius: 8px;
             font-size: 16px; cursor: pointer; letter-spacing: 2px;
         }
@@ -64,10 +63,10 @@
 
         #display-area {
             flex: 1; padding: 60px 25px; overflow-y: auto;
-            line-height: 2.2; padding-bottom: 60vh;
+            line-height: 2.4; padding-bottom: 60vh;
         }
 
-        .paragraph { margin-bottom: 1.8em; display: block; }
+        .paragraph { margin-bottom: 2em; display: block; }
 
         .word {
             display: inline; padding: 4px 0;
@@ -78,9 +77,7 @@
 
         .word.active { background-color: var(--word-highlight); color: #555; }
         
-        /* Brightness applies to locked text */
-        .word.clause-locked { color: var(--reader-bright) !important; }
-
+        /* Clause Colors */
         .clause-v-a { background-color: var(--clause-a) !important; }
         .clause-v-b { background-color: var(--clause-b) !important; }
 
@@ -106,8 +103,8 @@
 
         #back-btn {
             position: absolute; top: 15px; left: 15px;
-            background: rgba(0,0,0,0.6); border: 1px solid #222; color: #555;
-            padding: 8px 16px; border-radius: 6px; font-size: 11px; z-index: 100;
+            background: rgba(0,0,0,0.8); border: 1px solid #222; color: #666;
+            padding: 10px 18px; border-radius: 6px; font-size: 12px; z-index: 100;
         }
     </style>
 </head>
@@ -118,11 +115,11 @@
             <button id="clear-btn">CLEAR ALL</button>
         </div>
         <div class="settings-bar">
-            <label>SIZE</label>
+            <label>Size</label>
             <input type="range" id="font-slider" min="16" max="44" value="22">
             <span id="font-value">22px</span>
 
-            <label>BRIGHT</label>
+            <label>Bright</label>
             <input type="range" id="bright-slider" min="20" max="100" value="100">
             <span id="bright-value">100%</span>
         </div>
@@ -140,40 +137,35 @@
     </div>
 
 <script>
+    // Constants & State
+    const PREFIX = "chunk_v14_";
     const setupPage = document.getElementById('setup-page');
     const readerPage = document.getElementById('reader-page');
     const inputText = document.getElementById('input-text');
-    const startBtn = document.getElementById('start-btn');
-    const clearBtn = document.getElementById('clear-btn');
-    const backBtn = document.getElementById('back-btn');
     const displayArea = document.getElementById('display-area');
     
-    const fontSlider = document.getElementById('font-slider');
-    const fontValue = document.getElementById('font-value');
-    const brightSlider = document.getElementById('bright-slider');
-    const brightValue = document.getElementById('bright-value');
-
     let currentWordIdx = 0;
     let clauseCounter = 0;
 
+    // Load function
     window.onload = () => {
-        const savedText = localStorage.getItem('v13_text');
-        const savedHTML = localStorage.getItem('v13_html');
-        const savedIdx = localStorage.getItem('v13_idx');
-        const savedCount = localStorage.getItem('v13_count');
-        const savedFont = localStorage.getItem('v13_font');
-        const savedBright = localStorage.getItem('v13_bright');
+        const savedText = localStorage.getItem(PREFIX + 'text');
+        const savedHTML = localStorage.getItem(PREFIX + 'html');
+        const savedIdx = localStorage.getItem(PREFIX + 'idx');
+        const savedCount = localStorage.getItem(PREFIX + 'count');
+        const savedFont = localStorage.getItem(PREFIX + 'font') || "22";
+        const savedBright = localStorage.getItem(PREFIX + 'bright') || "100";
 
         if (savedText) inputText.value = savedText;
-        if (savedFont) {
-            fontSlider.value = savedFont;
-            fontValue.textContent = savedFont + "px";
-            displayArea.style.fontSize = savedFont + "px";
-        }
-        if (savedBright) {
-            brightSlider.value = savedBright;
-            updateBrightness(savedBright);
-        }
+        
+        // Setup font/brightness sliders
+        document.getElementById('font-slider').value = savedFont;
+        document.getElementById('font-value').textContent = savedFont + "px";
+        displayArea.style.fontSize = savedFont + "px";
+
+        document.getElementById('bright-slider').value = savedBright;
+        applyBrightness(savedBright);
+
         if (savedHTML) {
             displayArea.innerHTML = savedHTML;
             currentWordIdx = parseInt(savedIdx) || 0;
@@ -184,39 +176,53 @@
         }
     };
 
-    function updateBrightness(val) {
-        brightValue.textContent = val + "%";
+    function applyBrightness(val) {
+        document.getElementById('bright-value').textContent = val + "%";
         const c = Math.floor((val / 100) * 255);
-        document.documentElement.style.setProperty('--reader-bright', `rgb(${c}, ${c}, ${c})`);
-        localStorage.setItem('v13_bright', val);
+        const colorStr = `rgb(${c}, ${c}, ${c})`;
+        
+        // Inject a dynamic style tag to handle the locked word color
+        let styleTag = document.getElementById('dynamic-brightness');
+        if (!styleTag) {
+            styleTag = document.createElement('style');
+            styleTag.id = 'dynamic-brightness';
+            document.head.appendChild(styleTag);
+        }
+        styleTag.innerHTML = `.word.clause-locked { color: ${colorStr} !important; }`;
+        localStorage.setItem(PREFIX + 'bright', val);
     }
-
-    brightSlider.addEventListener('input', (e) => updateBrightness(e.target.value));
-    fontSlider.addEventListener('input', () => {
-        fontValue.textContent = fontSlider.value + "px";
-        displayArea.style.fontSize = fontSlider.value + "px";
-        localStorage.setItem('v13_font', fontSlider.value);
-    });
 
     function save() {
-        localStorage.setItem('v13_text', inputText.value);
-        localStorage.setItem('v13_html', displayArea.innerHTML);
-        localStorage.setItem('v13_idx', currentWordIdx);
-        localStorage.setItem('v13_count', clauseCounter);
+        localStorage.setItem(PREFIX + 'text', inputText.value);
+        localStorage.setItem(PREFIX + 'html', displayArea.innerHTML);
+        localStorage.setItem(PREFIX + 'idx', currentWordIdx);
+        localStorage.setItem(PREFIX + 'count', clauseCounter);
     }
 
-    startBtn.addEventListener('click', () => {
+    // Sliders
+    document.getElementById('font-slider').oninput = function() {
+        const val = this.value;
+        document.getElementById('font-value').textContent = val + "px";
+        displayArea.style.fontSize = val + "px";
+        localStorage.setItem(PREFIX + 'font', val);
+    };
+
+    document.getElementById('bright-slider').oninput = function() {
+        applyBrightness(this.value);
+    };
+
+    // Buttons
+    document.getElementById('start-btn').onclick = function() {
         const text = inputText.value.trim();
         if (!text) return;
-        
-        // Always refresh the HTML if we are entering from the setup page
-        // to ensure word IDs match the current state.
-        if (text !== localStorage.getItem('v13_text') || !displayArea.innerHTML) {
+
+        // If it's a fresh text, build it
+        if (text !== localStorage.getItem(PREFIX + 'text') || !displayArea.innerHTML) {
             const paragraphs = text.split(/\n+/);
-            let globalWordIdx = 0;
-            displayArea.innerHTML = paragraphs.map((p) => {
+            let globalIdx = 0;
+            displayArea.innerHTML = paragraphs.map(p => {
                 const words = p.split(/(\s+)/);
-                return `<div class="paragraph">${words.map(w => `<span class="word" id="w-${globalWordIdx++}">${w}</span>`).join('')}</div>`;
+                return `<div class="paragraph">${words.map(w => `<span class="word" id="w-${globalIdx++}">${w}</span>`).join('')}</div>`;
             }).join('');
             currentWordIdx = 0;
             clauseCounter = 0;
@@ -226,21 +232,19 @@
         readerPage.classList.remove('hidden');
         save();
         scrollToActive();
-    });
+    };
 
-    backBtn.addEventListener('click', () => {
+    document.getElementById('back-btn').onclick = function() {
         readerPage.classList.add('hidden');
         setupPage.classList.remove('hidden');
-    });
+    };
 
-    clearBtn.addEventListener('click', () => {
-        if(confirm("Clear everything?")) {
+    document.getElementById('clear-btn').onclick = function() {
+        if(confirm("Clear progress?")) {
             localStorage.clear();
-            inputText.value = "";
-            displayArea.innerHTML = "";
             location.reload();
         }
-    });
+    };
 
     function nextWord() {
         const el = document.getElementById(`w-${currentWordIdx}`);
@@ -248,7 +252,7 @@
             el.classList.add('active');
             if (el.textContent.trim() === "") {
                 currentWordIdx++;
-                nextWord(); // Skip whitespace
+                nextWord(); 
                 return;
             }
             scrollToActive();
@@ -279,18 +283,15 @@
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
-    // Touch support for mobile buttons
-    wordBtn.addEventListener('touchstart', (e) => { e.preventDefault(); nextWord(); });
-    clauseBtn.addEventListener('touchstart', (e) => { e.preventDefault(); endClause(); });
-    // Fallback for desktop/mouse
-    wordBtn.addEventListener('mousedown', (e) => { if (e.button === 0) nextWord(); });
-    clauseBtn.addEventListener('mousedown', (e) => { if (e.button === 0) endClause(); });
+    // Direct Click Bindings
+    document.getElementById('word-btn').onclick = (e) => { e.preventDefault(); nextWord(); };
+    document.getElementById('clause-btn').onclick = (e) => { e.preventDefault(); endClause(); };
 
-    window.addEventListener('keydown', (e) => {
+    window.onkeydown = (e) => {
         if (readerPage.classList.contains('hidden')) return;
         if (e.key === 'a' || e.key === 'ArrowLeft') nextWord();
         if (e.key === 'd' || e.key === 'ArrowRight') endClause();
-    });
+    };
 </script>
 
 </body>
