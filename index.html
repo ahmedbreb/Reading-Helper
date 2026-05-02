@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Clause Reader V16</title>
+    <title>Clause Reader V17</title>
     <style>
         :root {
             --bg-color: #080808;
@@ -25,12 +25,9 @@
 
         .hidden { display: none !important; }
 
-        /* Setup Page - Fixed for S22 Ultra aspect ratio */
         #setup-page {
             display: flex; flex-direction: column;
-            padding: 15px; 
-            height: 100dvh; /* Dynamic height accounts for mobile browser bars */
-            box-sizing: border-box;
+            padding: 15px; height: 100dvh; box-sizing: border-box;
             max-width: 800px; margin: 0 auto;
         }
 
@@ -52,24 +49,20 @@
         input[type=range] { cursor: pointer; accent-color: #555; width: 100%; }
 
         textarea {
-            flex: 1; 
-            background: var(--surface-color); color: #888;
+            flex: 1; background: var(--surface-color); color: #888;
             border: 1px solid var(--btn-border); border-radius: 8px;
             padding: 15px; font-size: 18px; margin-bottom: 15px;
             outline: none; resize: none;
-            min-height: 100px;
         }
 
         #start-btn {
-            height: 55px; /* Explicit height */
-            flex-shrink: 0; /* Prevents button from squishing */
+            height: 60px; flex-shrink: 0;
             background: #111; color: #999;
             border: 1px solid #222; border-radius: 8px;
             font-size: 14px; cursor: pointer; letter-spacing: 3px;
-            font-weight: bold; margin-bottom: 5px;
+            font-weight: bold; margin-bottom: 10px;
         }
 
-        /* Reader Page */
         #reader-page { display: flex; flex-direction: column; height: 100dvh; position: relative; }
 
         #display-area {
@@ -91,15 +84,8 @@
         .clause-v-a { background-color: var(--clause-a) !important; }
         .clause-v-b { background-color: var(--clause-b) !important; }
 
-        .marker-start {
-            padding-left: 10px !important; border-top-left-radius: 8px;
-            border-bottom-left-radius: 8px; margin-left: 5px;
-        }
-
-        .marker-end {
-            padding-right: 10px !important; border-top-right-radius: 8px;
-            border-bottom-right-radius: 8px; margin-right: 35px; 
-        }
+        .marker-start { padding-left: 10px !important; border-radius: 8px 0 0 8px; margin-left: 5px; }
+        .marker-end { padding-right: 10px !important; border-radius: 0 8px 8px 0; margin-right: 35px; }
 
         .controls { display: flex; height: 35vh; width: 100%; background: var(--bg-color); border-top: 1px solid #1a1a1a; }
 
@@ -122,9 +108,8 @@
 
     <div id="setup-page">
         <div class="top-row">
-            <button id="clear-btn" onclick="clearAll()">CLEAR TEXT</button>
+            <button id="clear-btn" onclick="clearAll()">CLEAR ALL</button>
         </div>
-        
         <div class="settings-bar">
             <label>SIZE</label>
             <input type="range" id="font-slider" min="16" max="44" value="22">
@@ -134,9 +119,7 @@
             <input type="range" id="bright-slider" min="10" max="85" value="30">
             <span id="bright-value">30%</span>
         </div>
-
         <textarea id="input-text" placeholder="Paste text..."></textarea>
-        
         <button id="start-btn" onclick="openReader()">OPEN READER</button>
     </div>
 
@@ -150,7 +133,7 @@
     </div>
 
 <script>
-    const PREFIX = "chunk_v16_";
+    const PREFIX = "chunk_v17_";
     const setupPage = document.getElementById('setup-page');
     const readerPage = document.getElementById('reader-page');
     const inputText = document.getElementById('input-text');
@@ -182,7 +165,7 @@
             clauseCounter = parseInt(savedCount) || 0;
             setupPage.classList.add('hidden');
             readerPage.classList.remove('hidden');
-            scrollToActive();
+            setTimeout(scrollToActive, 100);
         }
     };
 
@@ -194,10 +177,7 @@
         localStorage.setItem(PREFIX + 'bright', val);
     }
 
-    document.getElementById('bright-slider').oninput = function() {
-        applyUnreadBrightness(this.value);
-    };
-
+    document.getElementById('bright-slider').oninput = function() { applyUnreadBrightness(this.value); };
     document.getElementById('font-slider').oninput = function() {
         const val = this.value;
         document.getElementById('font-value').textContent = val + "px";
@@ -209,10 +189,10 @@
         const text = inputText.value.trim();
         if (!text) return;
 
-        // CRITICAL FIX: Only rebuild if the text has actually changed
         const lastText = localStorage.getItem(PREFIX + 'text');
         
-        if (text !== lastText || !displayArea.innerHTML) {
+        // Only reset progress if the text is ACTUALLY different
+        if (text !== lastText) {
             const paragraphs = text.split(/\n+/);
             let globalIdx = 0;
             displayArea.innerHTML = paragraphs.map(p => {
@@ -221,6 +201,12 @@
             }).join('');
             currentWordIdx = 0;
             clauseCounter = 0;
+        } else {
+            // Text is the same! Restore the saved index so we don't start at 0
+            const savedIdx = localStorage.getItem(PREFIX + 'idx');
+            const savedCount = localStorage.getItem(PREFIX + 'count');
+            currentWordIdx = parseInt(savedIdx) || 0;
+            clauseCounter = parseInt(savedCount) || 0;
         }
 
         setupPage.classList.add('hidden');
@@ -230,7 +216,7 @@
     }
 
     function goBack() {
-        // Just hide the reader, don't clear progress
+        save(); // Save exactly where we are before switching
         readerPage.classList.add('hidden');
         setupPage.classList.remove('hidden');
     }
