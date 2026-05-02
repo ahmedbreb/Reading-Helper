@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Clause Reader V18</title>
+    <title>Clause Reader V19</title>
     <style>
         :root {
             --bg-color: #080808;
@@ -31,11 +31,11 @@
             max-width: 800px; margin: 0 auto;
         }
 
-        .top-row { display: flex; justify-content: flex-end; padding-bottom: 8px; }
+        .top-row { display: flex; justify-content: space-between; padding-bottom: 8px; }
         
-        #clear-btn { 
+        .top-btn { 
             background: #1a1a1a; border: 1px solid #333; color: #777; 
-            padding: 6px 12px; border-radius: 6px; cursor: pointer; 
+            padding: 8px 12px; border-radius: 6px; cursor: pointer; 
             font-size: 10px; text-transform: uppercase;
         }
 
@@ -57,7 +57,7 @@
 
         #start-btn {
             height: 60px; flex-shrink: 0;
-            background: #111; color: #999;
+            background: #111; color: #00ffaa; /* Highlighted to show it's a Resume/Open */
             border: 1px solid #222; border-radius: 8px;
             font-size: 14px; cursor: pointer; letter-spacing: 3px;
             font-weight: bold; margin-bottom: 10px;
@@ -76,7 +76,6 @@
             display: inline; padding: 4px 0;
             color: var(--unread-color);
             white-space: pre-wrap; font-size: inherit;
-            box-decoration-break: clone; -webkit-box-decoration-break: clone;
         }
 
         .word.active { background-color: var(--word-highlight); color: #666; }
@@ -108,7 +107,8 @@
 
     <div id="setup-page">
         <div class="top-row">
-            <button id="clear-btn" onclick="clearAll()">CLEAR ALL</button>
+            <button class="top-btn" onclick="createNewSession()">NEW TEXT / RESET</button>
+            <button id="clear-btn" class="top-btn" onclick="fullClear()">CLEAR ALL</button>
         </div>
         <div class="settings-bar">
             <label>SIZE</label>
@@ -119,8 +119,8 @@
             <input type="range" id="bright-slider" min="10" max="85" value="30">
             <span id="bright-value">30%</span>
         </div>
-        <textarea id="input-text" placeholder="Paste text..."></textarea>
-        <button id="start-btn" onclick="openReader()">OPEN READER</button>
+        <textarea id="input-text" placeholder="Paste text here..."></textarea>
+        <button id="start-btn" onclick="resumeReader()">RESUME / OPEN READER</button>
     </div>
 
     <div id="reader-page" class="hidden">
@@ -133,7 +133,7 @@
     </div>
 
 <script>
-    const PREFIX = "chunk_v18_";
+    const PREFIX = "chunk_v19_";
     const setupPage = document.getElementById('setup-page');
     const readerPage = document.getElementById('reader-page');
     const inputText = document.getElementById('input-text');
@@ -143,14 +143,14 @@
     let clauseCounter = 0;
 
     window.onload = () => {
-        const savedText = localStorage.getItem(PREFIX + 'text');
         const savedHTML = localStorage.getItem(PREFIX + 'html');
         const savedIdx = localStorage.getItem(PREFIX + 'idx');
         const savedCount = localStorage.getItem(PREFIX + 'count');
         const savedFont = localStorage.getItem(PREFIX + 'font') || "22";
         const savedBright = localStorage.getItem(PREFIX + 'bright') || "30";
+        const savedRawText = localStorage.getItem(PREFIX + 'text');
 
-        if (savedText) inputText.value = savedText;
+        if (savedRawText) inputText.value = savedRawText;
         
         document.getElementById('font-slider').value = savedFont;
         document.getElementById('font-value').textContent = savedFont + "px";
@@ -159,13 +159,11 @@
         document.getElementById('bright-slider').value = savedBright;
         applyUnreadBrightness(savedBright);
 
-        if (savedHTML) {
+        if (savedHTML && savedHTML.trim() !== "") {
             displayArea.innerHTML = savedHTML;
             currentWordIdx = parseInt(savedIdx) || 0;
             clauseCounter = parseInt(savedCount) || 0;
-            setupPage.classList.add('hidden');
-            readerPage.classList.remove('hidden');
-            setTimeout(scrollToActive, 100);
+            // Stay on setup page but ready to resume
         }
     };
 
@@ -173,7 +171,6 @@
         document.getElementById('bright-value').textContent = val + "%";
         const c = Math.floor((val / 100) * 255);
         document.documentElement.style.setProperty('--unread-color', `rgb(${c}, ${c}, ${c})`);
-        inputText.style.color = `rgb(${c+30}, ${c+30}, ${c+30})`; 
         localStorage.setItem(PREFIX + 'bright', val);
     }
 
@@ -185,25 +182,30 @@
         localStorage.setItem(PREFIX + 'font', val);
     };
 
-    function openReader() {
+    function createNewSession() {
         const text = inputText.value.trim();
-        if (!text) return;
-
-        // CHECK: If the display area already has words and the text hasn't changed, 
-        // DO NOT REBUILD. Just show the page.
-        const storedText = localStorage.getItem(PREFIX + 'text');
+        if (!text) { alert("Paste some text first!"); return; }
         
-        if (text !== storedText || displayArea.innerHTML === "") {
-            const paragraphs = text.split(/\n+/);
-            let globalIdx = 0;
-            displayArea.innerHTML = paragraphs.map(p => {
-                const words = p.split(/(\s+)/);
-                return `<div class="paragraph">${words.map(w => `<span class="word" id="w-${globalIdx++}">${w}</span>`).join('')}</div>`;
-            }).join('');
-            currentWordIdx = 0;
-            clauseCounter = 0;
-        }
+        if (displayArea.innerHTML !== "" && !confirm("This will wipe your current progress. Continue?")) return;
 
+        const paragraphs = text.split(/\n+/);
+        let globalIdx = 0;
+        displayArea.innerHTML = paragraphs.map(p => {
+            const words = p.split(/(\s+)/);
+            return `<div class="paragraph">${words.map(w => `<span class="word" id="w-${globalIdx++}">${w}</span>`).join('')}</div>`;
+        }).join('');
+        
+        currentWordIdx = 0;
+        clauseCounter = 0;
+        save();
+        alert("New session ready! Click Resume/Open to start.");
+    }
+
+    function resumeReader() {
+        if (displayArea.innerHTML === "") {
+            createNewSession();
+            if (displayArea.innerHTML === "") return;
+        }
         setupPage.classList.add('hidden');
         readerPage.classList.remove('hidden');
         save();
@@ -216,8 +218,8 @@
         setupPage.classList.remove('hidden');
     }
 
-    function clearAll() {
-        if(confirm("Clear all text and progress?")) {
+    function fullClear() {
+        if(confirm("Delete everything?")) {
             localStorage.clear();
             location.reload();
         }
@@ -269,12 +271,6 @@
 
     document.getElementById('word-btn').onclick = (e) => { e.preventDefault(); nextWord(); };
     document.getElementById('clause-btn').onclick = (e) => { e.preventDefault(); endClause(); };
-
-    window.onkeydown = (e) => {
-        if (readerPage.classList.contains('hidden')) return;
-        if (e.key === 'a' || e.key === 'ArrowLeft') nextWord();
-        if (e.key === 'd' || e.key === 'ArrowRight') endClause();
-    };
 </script>
 
 </body>
